@@ -1,10 +1,10 @@
-# claude-team
+# Ainulindalë
 
-A reusable multi-agent team framework for Claude Code. Define role-based agents with lifecycle orchestration, tool scoping, and workflow automation — then instantiate them toward any project.
+A reusable multi-agent team framework. Define role-based agents with lifecycle orchestration, tool scoping, and workflow automation — then instantiate them toward any project.
 
 ## Vision
 
-Most software teams have specialized roles: architects who plan, PMs who track, developers who build, domain experts who advise. This framework brings that structure to Claude Code, giving each role:
+Most software teams have specialized roles: architects who plan, PMs who track, developers who build, domain experts who advise. This framework brings that structure to AI coding agents, giving each role:
 
 - **Isolated context** — agents don't bleed into each other
 - **Scoped permissions** — architects can't edit code, developers can't create issues
@@ -18,7 +18,7 @@ Most software teams have specialized roles: architects who plan, PMs who track, 
 ## Planned Architecture
 
 ```
-claude-team/
+ai-lindale/
 ├── agents/              # Role definitions (.claude/agents/*.md format)
 │   ├── architect.md     # Read-only, creates implementation plans
 │   ├── tpm.md           # Issue management, requirements, tracking
