@@ -12,7 +12,6 @@ tools:
   - NotebookEdit
 model: claude-sonnet-4-6
 isolation: worktree
-memory: project
 hooks:
   PreToolUse:
     - matcher: "Write|Edit"

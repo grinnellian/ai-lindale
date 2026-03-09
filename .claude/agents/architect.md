@@ -12,7 +12,6 @@ disallowedTools:
   - Edit
   - NotebookEdit
 model: claude-opus-4-6
-memory: project
 hooks:
   PreToolUse:
     - matcher: "Bash"

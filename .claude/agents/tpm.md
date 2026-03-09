@@ -12,7 +12,6 @@ tools:
 disallowedTools:
   - NotebookEdit
 model: claude-opus-4-6
-memory: project
 hooks:
   PreToolUse:
     - matcher: "Write|Edit"

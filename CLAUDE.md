@@ -31,6 +31,9 @@ ai-lindale/
 │   ├── agents/            # Agent definitions (frontmatter + system prompts)
 │   ├── commands/          # Slash commands that invoke agents
 │   └── settings.local.json
+├── memory/
+│   ├── MEMORY_INDEX.md    # Index of all topic files
+│   └── *.md               # Topic-scoped memory files
 └── scripts/
     └── hooks/             # PreToolUse enforcement scripts (DX-010)
         ├── enforce-write-paths.sh
@@ -46,6 +49,17 @@ ai-lindale/
 2. **PreToolUse hooks** — shell scripts that block unauthorized operations (hard, exit code 2)
 3. **Sandbox mode** — session-level filesystem/network boundaries
 4. **Worktree isolation** — Dev agent works in separate git worktree
+
+## Memory
+
+Agent memory lives in `memory/` within the repo — never in `~/.claude/` or outside the working directory.
+
+- `MEMORY_INDEX.md` — index of all topic files (keep concise)
+- Small topic files by subject (e.g., `decisions.md`, `patterns.md`)
+- Agents read/write memory using `Read`/`Write`/`Edit` on `memory/` files directly
+- All memory is version controlled and reviewable
+
+**Security rule:** Agents must never read or write outside the working directory for memory or any other purpose.
 
 ## Development Workflow
 
