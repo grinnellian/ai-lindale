@@ -1,0 +1,20 @@
+# team-config.yml — Project-specific configuration for the Ainulindale framework.
+#
+# This file is scaffolded once by install.sh and never overwritten.
+# Customize it for your project.
+
+# Project metadata
+# project:
+#   name: my-project
+#   description: A brief description of your project
+
+# Domain consultant configuration
+# consultant:
+#   role_name: domain-consultant
+#   domain_hint: your domain area
+
+# Toolchain — project-specific build/test commands
+# toolchain:
+#   test: npm test
+#   build: npm run build
+#   lint: npm run lint
