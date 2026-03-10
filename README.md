@@ -63,12 +63,26 @@ When an agent hits a blocker and the user is unavailable:
 4. Orchestrator surfaces a summary of all blocked items when user returns
 5. Future: webhook/notification integration for urgent blockers
 
-## Instantiation
+## Adoption
 
-The goal is that any project can adopt this framework by:
-1. Copying `agents/` and `hooks/` into their `.claude/` directory
-2. Customizing `team-config.yml` for project-specific roles (e.g., replacing "Astrology Consultant" with "Security Reviewer")
-3. Running `/orchestrator` or individual role commands
+Any project can adopt this framework via git submodule:
+
+```bash
+# Add the framework as a submodule
+git submodule add https://github.com/grinnellian/ai-lindale.git .ai-lindale
+
+# Install symlinks into .claude/ and scripts/hooks/
+bash .ai-lindale/scripts/install.sh
+
+# Customize for your project
+$EDITOR .claude/team-config.yml
+```
+
+Core agents, commands, and hook scripts are symlinked from `.ai-lindale/` into their expected locations. Project-specific files (domain consultant, `team-config.yml`, `CLAUDE.md`) are real files owned by the downstream project and never overwritten.
+
+Updates are a single command: `git submodule update --remote .ai-lindale`
+
+See [docs/adoption-guide.md](docs/adoption-guide.md) for the full guide including aistrologer migration steps.
 
 ## Related
 
