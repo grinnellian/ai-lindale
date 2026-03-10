@@ -15,19 +15,6 @@ HOOKS="$REPO_ROOT/scripts/hooks"
 
 # --- Helpers ---
 
-run_hook() {
-  local script="$1"
-  local json="$2"
-  local env_role="${3:-}"
-  local exit_code=0
-  if [ -n "$env_role" ]; then
-    CLAUDE_AGENT_ROLE="$env_role" echo "$json" | bash "$HOOKS/$script" >/dev/null 2>&1 || exit_code=$?
-  else
-    echo "$json" | bash "$HOOKS/$script" >/dev/null 2>&1 || exit_code=$?
-  fi
-  return $exit_code
-}
-
 expect_allow() {
   local name="$1" script="$2" json="$3" role="${4:-}"
   local exit_code=0
@@ -260,6 +247,16 @@ expect_block "Consultant: ls blocked" \
   '{"tool_name":"Bash","tool_input":{"command":"ls -la"}}' \
   "astrology-consultant"
 
+expect_block "Consultant: gh pr blocked" \
+  "bash-allowlist.sh" \
+  '{"tool_name":"Bash","tool_input":{"command":"gh pr view 1"}}' \
+  "astrology-consultant"
+
+expect_block "Consultant: gh pr create blocked" \
+  "bash-allowlist.sh" \
+  '{"tool_name":"Bash","tool_input":{"command":"gh pr create --title \"test\""}}' \
+  "astrology-consultant"
+
 echo ""
 echo "=== bash-allowlist.sh (Dev) ==="
 
@@ -296,6 +293,31 @@ expect_block "Dev: git push to main blocked" \
 expect_block "Dev: git push to master blocked" \
   "bash-allowlist.sh" \
   '{"tool_name":"Bash","tool_input":{"command":"git push origin master"}}' \
+  "dev"
+
+expect_block "Dev: git push --force-with-lease blocked" \
+  "bash-allowlist.sh" \
+  '{"tool_name":"Bash","tool_input":{"command":"git push --force-with-lease"}}' \
+  "dev"
+
+expect_block "Dev: git push -fu (bundled flags) blocked" \
+  "bash-allowlist.sh" \
+  '{"tool_name":"Bash","tool_input":{"command":"git push -fu origin branch"}}' \
+  "dev"
+
+expect_block "Dev: git checkout . blocked" \
+  "bash-allowlist.sh" \
+  '{"tool_name":"Bash","tool_input":{"command":"git checkout ."}}' \
+  "dev"
+
+expect_block "Dev: git restore . blocked" \
+  "bash-allowlist.sh" \
+  '{"tool_name":"Bash","tool_input":{"command":"git restore ."}}' \
+  "dev"
+
+expect_block "Dev: git clean -fd blocked" \
+  "bash-allowlist.sh" \
+  '{"tool_name":"Bash","tool_input":{"command":"git clean -fd"}}' \
   "dev"
 
 echo ""

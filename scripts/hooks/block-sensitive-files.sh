@@ -6,6 +6,12 @@
 
 set -euo pipefail
 
+# Guard: jq required for JSON parsing
+if ! command -v jq &>/dev/null; then
+  echo "BLOCKED: jq is required but not installed"
+  exit 2
+fi
+
 # Read JSON from stdin
 INPUT=$(cat)
 

@@ -34,15 +34,13 @@ ai-lindale/
 ├── memory/
 │   ├── MEMORY_INDEX.md    # Index of all topic files
 │   └── *.md               # Topic-scoped memory files
-├── scripts/
-│   └── hooks/             # PreToolUse enforcement scripts
-│       ├── enforce-write-paths.sh
-│       ├── bash-allowlist.sh
-│       ├── block-sensitive-files.sh
-│       └── tests/
-│           └── test-hooks.sh
-└── templates/
-    └── team-config.yml    # Template for downstream project config
+└── scripts/
+    └── hooks/             # PreToolUse enforcement scripts
+        ├── enforce-write-paths.sh
+        ├── bash-allowlist.sh
+        ├── block-sensitive-files.sh
+        └── tests/
+            └── test-hooks.sh
 ```
 
 ## Enforcement Layers

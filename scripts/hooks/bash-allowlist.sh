@@ -6,8 +6,19 @@
 # - Dev: denylist approach (block destructive git operations)
 #
 # Exit 0 = allow, exit 2 = block (stdout shown to agent as reason).
+#
+# Known limitations (acceptable given defense-in-depth with sandbox + worktree):
+# - Quoted pipes: `grep "foo|bar"` may be incorrectly split on |
+# - Backtick subshells: `cmd` not detected (only $(cmd) is caught)
+# - Heredocs: can smuggle commands past the parser
 
 set -euo pipefail
+
+# Guard: jq required for JSON parsing
+if ! command -v jq &>/dev/null; then
+  echo "BLOCKED: jq is required but not installed"
+  exit 2
+fi
 
 ROLE="${CLAUDE_AGENT_ROLE:-}"
 
@@ -148,13 +159,16 @@ check_allowlist_role() {
 check_dev() {
   local cmd="$1"
 
-  # Dev denylist: block destructive operations
-  # Force push
+  # Dev denylist: block destructive operations.
+  # Note: denylist is inherently incomplete — worktree isolation (enforcement
+  # layer 4) limits blast radius for any gaps not caught here.
+
+  # Force push (--force, --force-with-lease, -f, bundled -f e.g. -fu)
   if echo "$cmd" | grep -qE 'git\s+push\s+.*--force'; then
     echo "BLOCKED: Force push not allowed for dev role"
     return 2
   fi
-  if echo "$cmd" | grep -qE 'git\s+push\s+.*-f(\s|$)'; then
+  if echo "$cmd" | grep -qE 'git\s+push\s+.*-[a-zA-Z]*f'; then
     echo "BLOCKED: Force push not allowed for dev role"
     return 2
   fi
@@ -162,6 +176,20 @@ check_dev() {
   # Hard reset
   if echo "$cmd" | grep -qE 'git\s+reset\s+--hard'; then
     echo "BLOCKED: Hard reset not allowed for dev role"
+    return 2
+  fi
+
+  # Destructive working tree operations
+  if echo "$cmd" | grep -qE 'git\s+checkout\s+\.\s*$'; then
+    echo "BLOCKED: 'git checkout .' discards uncommitted changes — not allowed for dev role"
+    return 2
+  fi
+  if echo "$cmd" | grep -qE 'git\s+restore\s+\.'; then
+    echo "BLOCKED: 'git restore .' discards uncommitted changes — not allowed for dev role"
+    return 2
+  fi
+  if echo "$cmd" | grep -qE 'git\s+clean\s+-[a-zA-Z]*f'; then
+    echo "BLOCKED: 'git clean -f' deletes untracked files — not allowed for dev role"
     return 2
   fi
 
@@ -182,6 +210,8 @@ case "$ROLE" in
     exit $?
     ;;
   *-consultant|consultant)
+    # Matches any role ending in -consultant (e.g. astrology-consultant).
+    # Intentionally broad — fails toward more restrictive (safe direction).
     check_consultant "$COMMAND"
     exit $?
     ;;
