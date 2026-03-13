@@ -1,10 +1,10 @@
-/clear
-
-Review `CLAUDE.md` and `memory/` files, then process the provided tickets through the lifecycle state machine.
+Process the provided tickets through the lifecycle state machine.
 
 ## Startup
 
 If specific tickets or a milestone were provided, process them. If no arguments were given, survey open tickets, summarize their states, and recommend what to work on next — then wait for the user to confirm before dispatching.
+
+You should be invoked via `claude --agent tpm` for full hook enforcement. If not, warn the user on first message.
 
 ## State Machine
 
