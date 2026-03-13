@@ -26,12 +26,16 @@ the framework (e.g., `forensic-accountant.md`, `regulatory-advisor.md`).
 Read the following files from the repo root:
 - `CLAUDE.md`
 - `README.md`
+- `team-config.yml` or `.claude/team-config.yml` (if either exists)
 - Any config files that exist: `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, etc.
 
 ## Step 3: Identify Domain
 
-From the project context, identify the primary domain (e.g., astrology, fintech,
-healthcare, gaming, developer tooling). If no clear domain signal exists,
+If `team-config.yml` contains an `sme.domain_hint` value, use that as the
+primary domain signal. Otherwise, infer the domain from project context
+(CLAUDE.md, README, config files).
+
+If neither `domain_hint` nor project context provides a clear signal,
 default to "general technical".
 
 ## Step 4: Read the Meta-Template
