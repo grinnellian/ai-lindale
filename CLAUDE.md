@@ -30,12 +30,12 @@ ai-lindale/
 ├── .claude/
 │   ├── agents/            # Agent definitions (frontmatter + system prompts)
 │   │   ├── architect.md
-│   │   ├── astrology-consultant.md
+│   │   ├── consultant.md
 │   │   ├── dev.md
 │   │   └── tpm.md
 │   ├── commands/          # Slash commands that invoke agents
 │   │   ├── architect.md
-│   │   ├── astrology-consultant.md
+│   │   ├── consultant.md
 │   │   ├── autodev.md     # TPM-driven ticket lifecycle orchestration
 │   │   ├── dev.md
 │   │   └── tpm.md

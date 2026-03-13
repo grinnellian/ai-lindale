@@ -145,10 +145,10 @@ test_hook_symlinks() {
 test_preserves_project_files() {
   setup_project
   mkdir -p .claude/agents
-  echo "# Project-specific consultant" > .claude/agents/astrology-consultant.md
+  echo "# Project-specific consultant" > .claude/agents/consultant.md
   bash "$FRAMEWORK/scripts/install.sh"
-  assert_file_not_symlink ".claude/agents/astrology-consultant.md"
-  assert_file_contains ".claude/agents/astrology-consultant.md" "Project-specific consultant"
+  assert_file_not_symlink ".claude/agents/consultant.md"
+  assert_file_contains ".claude/agents/consultant.md" "Project-specific consultant"
 }
 
 test_creates_team_config_template() {

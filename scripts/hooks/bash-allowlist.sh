@@ -210,7 +210,7 @@ case "$ROLE" in
     exit $?
     ;;
   *-consultant|consultant)
-    # Matches any role ending in -consultant (e.g. astrology-consultant).
+    # Matches 'consultant' or any role ending in -consultant.
     # Intentionally broad — fails toward more restrictive (safe direction).
     check_consultant "$COMMAND"
     exit $?

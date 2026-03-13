@@ -96,8 +96,8 @@ For the [aistrologer](https://github.com/grinnellian/aistrologer) project:
 
 ### Files to Keep (project-owned)
 
-- `.claude/agents/astrology-consultant.md` — project-specific domain consultant
-- `.claude/commands/astrology-consultant.md` — project-specific command
+- `.claude/agents/consultant.md` — project-specific domain consultant (auto-specializes via boot loop)
+- `.claude/commands/consultant.md` — project-specific command
 - `.claude/settings.local.json` — project-specific settings
 - `memory/` — project-specific agent memory (not synced)
 - `CLAUDE.md` — project-specific context
