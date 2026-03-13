@@ -13,26 +13,43 @@ Most software teams have specialized roles: architects who plan, PMs who track, 
 
 ## Status
 
-**Pre-alpha.** Currently being prototyped inside [aistrologer](https://github.com/grinnellian/aistrologer) (see [DX-015](https://github.com/grinnellian/aistrologer/issues/88)). Will be extracted into this repo once patterns stabilize.
+**Pre-alpha.** Framework is extracted and lives here. Agents are defined, PreToolUse hooks are implemented, and adoption tooling works. Active development ongoing.
 
-## Planned Architecture
+## Architecture
 
 ```
 ai-lindale/
-├── agents/              # Role definitions (.claude/agents/*.md format)
-│   ├── architect.md     # Read-only, creates implementation plans
-│   ├── tpm.md           # Issue management, requirements, tracking
-│   ├── dev.md           # Full write access, worktree isolation, TDD
-│   ├── consultant.md    # Domain SME, read-only + GH comments
-│   └── orchestrator.md  # Lifecycle state machine, dispatches to roles
-├── hooks/               # PreToolUse enforcement scripts
-│   ├── enforce-write-paths.sh
-│   ├── bash-allowlist.sh
-│   └── block-sensitive-files.sh
-├── templates/           # Project-specific customization templates
-│   └── team-config.yml  # Role overrides, domain expert specialization, etc.
-└── docs/
-    └── lifecycle.md     # Ticket state machine documentation
+├── .claude/
+│   ├── agents/                      # Role definitions (frontmatter + system prompts)
+│   │   ├── architect.md
+│   │   ├── astrology-consultant.md
+│   │   ├── dev.md
+│   │   └── tpm.md
+│   ├── commands/                    # Slash commands that invoke agents
+│   │   ├── architect.md
+│   │   ├── astrology-consultant.md
+│   │   ├── autodev.md               # TPM-driven ticket lifecycle orchestration
+│   │   ├── dev.md
+│   │   └── tpm.md
+│   └── settings.local.json
+├── docs/
+│   └── adoption-guide.md
+├── memory/
+│   ├── MEMORY_INDEX.md
+│   └── decisions.md
+├── scripts/
+│   ├── hooks/                       # PreToolUse enforcement scripts
+│   │   ├── bash-allowlist.sh
+│   │   ├── block-sensitive-files.sh
+│   │   ├── enforce-write-paths.sh
+│   │   └── tests/test-hooks.sh
+│   ├── install.sh
+│   ├── sync.sh
+│   └── tests/test-adoption.sh
+├── templates/
+│   └── team-config.yml
+├── CLAUDE.md
+└── README.md
 ```
 
 ## Key Design Decisions
@@ -40,7 +57,7 @@ ai-lindale/
 ### Direct & Orchestrated Modes
 Each agent works in two modes:
 - **Direct:** User opens a tab, runs `/architect` — that tab *is* the Architect
-- **Orchestrated:** User tells an orchestrator "work on these 5 tickets" — orchestrator spawns agents as subagents
+- **Orchestrated:** User runs `/autodev` in a TPM tab — the TPM drives the full ticket lifecycle, spawning Architect and Dev as subagents via its `Agent` tool
 
 ### Enforcement Layers
 1. `disallowedTools` — prompt-enforced tool restrictions (soft)
@@ -86,7 +103,7 @@ See [docs/adoption-guide.md](docs/adoption-guide.md) for the full guide includin
 
 ## Related
 
-- Prototyped in: [aistrologer](https://github.com/grinnellian/aistrologer)
+- Originally prototyped in: [aistrologer](https://github.com/grinnellian/aistrologer)
 - Claude Code docs: [Subagents](https://docs.anthropic.com/en/docs/claude-code/sub-agents)
 - Future: [Claude Agent SDK](https://docs.anthropic.com/en/docs/agents/agent-sdk) for persistent multi-agent systems
 

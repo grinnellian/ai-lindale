@@ -29,18 +29,35 @@ ai-lindale/
 ├── README.md              # Public-facing project description
 ├── .claude/
 │   ├── agents/            # Agent definitions (frontmatter + system prompts)
+│   │   ├── architect.md
+│   │   ├── astrology-consultant.md
+│   │   ├── dev.md
+│   │   └── tpm.md
 │   ├── commands/          # Slash commands that invoke agents
+│   │   ├── architect.md
+│   │   ├── astrology-consultant.md
+│   │   ├── autodev.md     # TPM-driven ticket lifecycle orchestration
+│   │   ├── dev.md
+│   │   └── tpm.md
 │   └── settings.local.json
+├── docs/
+│   └── adoption-guide.md  # Downstream adoption guide
 ├── memory/
 │   ├── MEMORY_INDEX.md    # Index of all topic files
 │   └── *.md               # Topic-scoped memory files
-└── scripts/
-    └── hooks/             # PreToolUse enforcement scripts
-        ├── enforce-write-paths.sh
-        ├── bash-allowlist.sh
-        ├── block-sensitive-files.sh
-        └── tests/
-            └── test-hooks.sh
+├── scripts/
+│   ├── hooks/             # PreToolUse enforcement scripts
+│   │   ├── bash-allowlist.sh
+│   │   ├── block-sensitive-files.sh
+│   │   ├── enforce-write-paths.sh
+│   │   └── tests/
+│   │       └── test-hooks.sh
+│   ├── install.sh         # Downstream install via git submodule
+│   ├── sync.sh            # Downstream sync/update helper
+│   └── tests/
+│       └── test-adoption.sh
+└── templates/
+    └── team-config.yml    # Role overrides and project customization
 ```
 
 ## Enforcement Layers
@@ -66,9 +83,10 @@ Agent memory lives in `memory/` within the repo — never in `~/.claude/` or out
 This repo develops the framework itself. To test changes:
 1. Modify agent definitions in `.claude/agents/`
 2. Test by invoking the agent via its slash command (e.g., `/tpm`)
-3. Validate hook scripts work correctly with the agent's tool usage
-4. Downstream testing: apply changes to aistrologer and verify
+3. Use `/autodev` in a TPM tab to run the full ticket lifecycle end-to-end
+4. Validate hook scripts work correctly with the agent's tool usage
+5. Downstream testing: apply changes to aistrologer and verify
 
 ## Current Status
 
-**Pre-alpha.** Being extracted from [aistrologer](https://github.com/grinnellian/aistrologer). See issue tracker for migration progress.
+**Pre-alpha.** Framework is extracted from [aistrologer](https://github.com/grinnellian/aistrologer) and lives here. Agents are defined, PreToolUse hooks are implemented, and adoption tooling (`scripts/install.sh`, `scripts/sync.sh`) works. See issue tracker for ongoing work.
