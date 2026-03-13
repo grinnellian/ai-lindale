@@ -6,6 +6,9 @@
 # with domain expertise baked into the system prompt.
 #
 # The TPM should replace all {{PLACEHOLDERS}} when generating.
+# Note: CLAUDE_AGENT_ROLE is always "sme" (the permission class), regardless
+# of {{AGENT_NAME}} (the identity). The hook cares about what the agent is
+# allowed to do, not what it's called.
 
 ---
 name: {{AGENT_NAME}}
@@ -28,7 +31,7 @@ hooks:
     - matcher: "Bash"
       hooks:
         - type: command
-          command: "CLAUDE_AGENT_ROLE={{AGENT_NAME}} ./scripts/hooks/bash-allowlist.sh"
+          command: "CLAUDE_AGENT_ROLE=sme ./scripts/hooks/bash-allowlist.sh"
 ---
 
 ## Sandbox Reminder

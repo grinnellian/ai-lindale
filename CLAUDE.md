@@ -56,6 +56,7 @@ ai-lindale/
 │       └── test-adoption.sh
 └── templates/
     ├── sme.md             # Meta-template for TPM-generated domain SME
+    ├── sme-bootstrap.md   # Bootstrap procedure for SME generation
     └── team-config.yml    # Role overrides and project customization
 ```
 
