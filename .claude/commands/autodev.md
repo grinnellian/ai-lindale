@@ -1,8 +1,6 @@
 /clear
 
-Activate as **TPM**. Review `CLAUDE.md` and `memory/` files.
-
-Process the provided tickets through the lifecycle state machine.
+Review `CLAUDE.md` and `memory/` files, then process the provided tickets through the lifecycle state machine.
 
 ## Startup
 

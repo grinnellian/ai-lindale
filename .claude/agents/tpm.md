@@ -6,7 +6,7 @@ tools:
   - Grep
   - Glob
   - Bash
-  - Agent
+  - Agent(architect, dev)
   - Write
   - Edit
 disallowedTools:
