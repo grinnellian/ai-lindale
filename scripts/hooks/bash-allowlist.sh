@@ -2,7 +2,7 @@
 # PreToolUse hook: enforces per-role Bash command restrictions.
 #
 # - TPM/Architect: allowlist approach (only safe read-only commands)
-# - Consultant: very restricted (gh issue only)
+# - SME: very restricted (gh issue only)
 # - Dev: denylist approach (block destructive git operations)
 #
 # Exit 0 = allow, exit 2 = block (stdout shown to agent as reason).
