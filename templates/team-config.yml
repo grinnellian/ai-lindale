@@ -8,9 +8,9 @@
 #   name: my-project
 #   description: A brief description of your project
 
-# Domain consultant configuration
-# consultant:
-#   role_name: domain-consultant
+# Domain SME configuration
+# sme:
+#   role_name: domain-sme
 #   domain_hint: your domain area
 
 # Toolchain — project-specific build/test commands

@@ -62,7 +62,7 @@ bash scripts/sync.sh
 | Core agents (architect, tpm, dev) | Framework | Symlink into submodule | `.claude/agents/` |
 | Core commands | Framework | Symlink into submodule | `.claude/commands/` |
 | Hook scripts | Framework | Symlink into submodule | `scripts/hooks/` |
-| Domain consultant | Project | Manual, never overwritten | `.claude/agents/` |
+| Domain SME | Project | Manual, never overwritten | `.claude/agents/` |
 | team-config.yml | Project | Scaffolded once, never overwritten | `.claude/` |
 | settings.local.json | Project | Manual | `.claude/` |
 | CLAUDE.md | Project | Manual | repo root |
@@ -72,11 +72,11 @@ bash scripts/sync.sh
 
 **Key insight:** The install boundary IS the context boundary. Only files symlinked into `.claude/` are visible to Claude Code at runtime. Framework internals (docs, memory, CLAUDE.md) stay in `.ai-lindale/` and don't bleed into your project's agent context.
 
-## Adding a Project-Specific Consultant
+## Adding a Project-Specific SME
 
-1. Create `.claude/agents/<domain>-consultant.md` as a real file (not a symlink)
-2. Create `.claude/commands/<domain>-consultant.md`
-3. Set `consultant.role_name` and `consultant.domain_hint` in `team-config.yml`
+1. Create `.claude/agents/<domain>-sme.md` as a real file (not a symlink)
+2. Create `.claude/commands/<domain>-sme.md`
+3. Set `sme.role_name` and `sme.domain_hint` in `team-config.yml`
 
 This file is project-owned and will never be overwritten by framework updates.
 
@@ -96,8 +96,8 @@ For the [aistrologer](https://github.com/grinnellian/aistrologer) project:
 
 ### Files to Keep (project-owned)
 
-- `.claude/agents/consultant.md` — project-specific domain consultant (auto-specializes via boot loop)
-- `.claude/commands/consultant.md` — project-specific command
+- `.claude/agents/sme.md` — project-specific domain SME (auto-specializes via boot loop)
+- `.claude/commands/sme.md` — project-specific command
 - `.claude/settings.local.json` — project-specific settings
 - `memory/` — project-specific agent memory (not synced)
 - `CLAUDE.md` — project-specific context

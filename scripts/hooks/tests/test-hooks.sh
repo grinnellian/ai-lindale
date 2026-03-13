@@ -220,42 +220,42 @@ expect_block "Architect: git commit blocked" \
   "architect"
 
 echo ""
-echo "=== bash-allowlist.sh (Consultant) ==="
+echo "=== bash-allowlist.sh (SME) ==="
 
-expect_allow "Consultant: gh issue view" \
+expect_allow "SME: gh issue view" \
   "bash-allowlist.sh" \
   '{"tool_name":"Bash","tool_input":{"command":"gh issue view 5"}}' \
-  "consultant"
+  "sme"
 
-expect_allow "Consultant: gh issue comment" \
+expect_allow "SME: gh issue comment" \
   "bash-allowlist.sh" \
   '{"tool_name":"Bash","tool_input":{"command":"gh issue comment 5 --body \"looks good\""}}' \
-  "consultant"
+  "sme"
 
-expect_allow "Consultant: gh issue list" \
+expect_allow "SME: gh issue list" \
   "bash-allowlist.sh" \
   '{"tool_name":"Bash","tool_input":{"command":"gh issue list"}}' \
-  "consultant"
+  "sme"
 
-expect_block "Consultant: git blocked" \
+expect_block "SME: git blocked" \
   "bash-allowlist.sh" \
   '{"tool_name":"Bash","tool_input":{"command":"git status"}}' \
-  "consultant"
+  "sme"
 
-expect_block "Consultant: ls blocked" \
+expect_block "SME: ls blocked" \
   "bash-allowlist.sh" \
   '{"tool_name":"Bash","tool_input":{"command":"ls -la"}}' \
-  "consultant"
+  "sme"
 
-expect_block "Consultant: gh pr blocked" \
+expect_block "SME: gh pr blocked" \
   "bash-allowlist.sh" \
   '{"tool_name":"Bash","tool_input":{"command":"gh pr view 1"}}' \
-  "consultant"
+  "sme"
 
-expect_block "Consultant: gh pr create blocked" \
+expect_block "SME: gh pr create blocked" \
   "bash-allowlist.sh" \
   '{"tool_name":"Bash","tool_input":{"command":"gh pr create --title \"test\""}}' \
-  "consultant"
+  "sme"
 
 echo ""
 echo "=== bash-allowlist.sh (Dev) ==="
