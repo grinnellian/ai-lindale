@@ -22,12 +22,10 @@ ai-lindale/
 ├── .claude/
 │   ├── agents/                      # Role definitions (frontmatter + system prompts)
 │   │   ├── architect.md
-│   │   ├── sme.md
 │   │   ├── dev.md
 │   │   └── tpm.md
 │   ├── commands/                    # Slash commands that invoke agents
 │   │   ├── architect.md
-│   │   ├── sme.md
 │   │   ├── autodev.md               # TPM-driven ticket lifecycle orchestration
 │   │   ├── dev.md
 │   │   └── tpm.md
@@ -47,6 +45,7 @@ ai-lindale/
 │   ├── sync.sh
 │   └── tests/test-adoption.sh
 ├── templates/
+│   ├── sme.md                         # Meta-template for TPM-generated domain SME
 │   └── team-config.yml
 ├── CLAUDE.md
 └── README.md
