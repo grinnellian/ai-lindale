@@ -115,6 +115,16 @@ This requires a trigger mechanism (GitHub Actions, webhook, or long-running serv
 | FEAT-001 | Multi-agent meetings via subagents and external orchestration |
 | DX-011 | Escalation protocol (critical for AFK safety) |
 
+### Infrastructure Horizon: Multi-Project Orchestration
+
+When lindale orchestrates multiple projects simultaneously — each in its own container, each with its own agent team — credential management becomes infrastructure. A lightweight credential distribution service (working name: postman-pat) issues per-repo and per-role PATs to containers at startup. This likely involves Kubernetes for container orchestration, secrets management, and network policy enforcement. GitHub Apps (installation tokens) may replace PATs for better scoping.
+
+| Issue | Summary |
+|-------|---------|
+| INFRA-004 | Credential distribution service for multi-project orchestration |
+| INFRA-003 | GitHub PAT provisioning (single-project precursor) |
+| DX-016 | Per-agent auth isolation via MCP server scoping |
+
 ### Supporting Work
 
 Issues that improve quality of life without fitting neatly into a layer.
@@ -126,6 +136,7 @@ Issues that improve quality of life without fitting neatly into a layer.
 | DX-018 | In-repo memory system (replace auto-memory) |
 | DX-015 | Active agent visual indicator |
 | DX-021 | Add default colors to agent definitions |
+| DX-027 | Enforce commit-early-and-often agent behavior |
 
 ## Downstream Projects
 
