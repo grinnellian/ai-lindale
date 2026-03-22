@@ -22,12 +22,10 @@ ai-lindale/
 ├── .claude/
 │   ├── agents/                      # Role definitions (frontmatter + system prompts)
 │   │   ├── architect.md
-│   │   ├── astrology-consultant.md
 │   │   ├── dev.md
 │   │   └── tpm.md
 │   ├── commands/                    # Slash commands that invoke agents
 │   │   ├── architect.md
-│   │   ├── astrology-consultant.md
 │   │   ├── autodev.md               # TPM-driven ticket lifecycle orchestration
 │   │   ├── dev.md
 │   │   └── tpm.md
@@ -47,6 +45,8 @@ ai-lindale/
 │   ├── sync.sh
 │   └── tests/test-adoption.sh
 ├── templates/
+│   ├── sme.md                         # Meta-template for TPM-generated domain SME
+│   ├── sme-bootstrap.md               # Bootstrap procedure for SME generation
 │   └── team-config.yml
 ├── CLAUDE.md
 └── README.md
@@ -95,7 +95,7 @@ bash .ai-lindale/scripts/install.sh
 $EDITOR .claude/team-config.yml
 ```
 
-Core agents, commands, and hook scripts are symlinked from `.ai-lindale/` into their expected locations. Project-specific files (domain consultant, `team-config.yml`, `CLAUDE.md`) are real files owned by the downstream project and never overwritten.
+Core agents, commands, and hook scripts are symlinked from `.ai-lindale/` into their expected locations. Project-specific files (domain SME, `team-config.yml`, `CLAUDE.md`) are real files owned by the downstream project and never overwritten.
 
 Updates are a single command: `git submodule update --remote .ai-lindale`
 

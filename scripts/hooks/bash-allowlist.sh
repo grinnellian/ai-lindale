@@ -2,7 +2,7 @@
 # PreToolUse hook: enforces per-role Bash command restrictions.
 #
 # - TPM/Architect: allowlist approach (only safe read-only commands)
-# - Consultant: very restricted (gh issue only)
+# - SME: very restricted (gh issue only)
 # - Dev: denylist approach (block destructive git operations)
 #
 # Exit 0 = allow, exit 2 = block (stdout shown to agent as reason).
@@ -82,15 +82,15 @@ is_readonly_git() {
 
 # --- Role checks ---
 
-check_consultant() {
+check_sme() {
   local cmd="$1"
-  # Consultant: only gh issue view/comment/list
+  # SME: only gh issue view/comment/list
   local segments
   segments=$(extract_commands "$cmd")
 
   # Check for subshell escapes
   if ! check_subshell_escapes "$cmd"; then
-    echo "BLOCKED: Subshell expressions not allowed for consultant role"
+    echo "BLOCKED: Subshell expressions not allowed for sme role"
     return 2
   fi
 
@@ -104,12 +104,12 @@ check_consultant() {
       if echo "$segment" | grep -qE '^gh\s+issue\s+(view|comment|list)'; then
         continue
       fi
-      echo "BLOCKED: Consultant can only use 'gh issue view/comment/list' (attempted: '$segment')"
+      echo "BLOCKED: SME can only use 'gh issue view/comment/list' (attempted: '$segment')"
       return 2
     fi
 
-    # Everything else is blocked for consultant
-    echo "BLOCKED: Consultant can only use 'gh issue' commands (attempted: '$segment')"
+    # Everything else is blocked for sme
+    echo "BLOCKED: SME can only use 'gh issue' commands (attempted: '$segment')"
     return 2
   done <<< "$segments"
 
@@ -209,10 +209,10 @@ case "$ROLE" in
     check_allowlist_role "$COMMAND" "$ROLE"
     exit $?
     ;;
-  *-consultant|consultant)
-    # Matches any role ending in -consultant (e.g. astrology-consultant).
+  *-sme|sme)
+    # Matches 'sme' or any role ending in -sme.
     # Intentionally broad — fails toward more restrictive (safe direction).
-    check_consultant "$COMMAND"
+    check_sme "$COMMAND"
     exit $?
     ;;
   dev)

@@ -56,7 +56,7 @@ case "$ROLE" in
     ;;
   *)
     # Roles without write path restrictions pass through
-    # (Dev uses block-sensitive-files.sh instead; Architect/Consultant have disallowedTools)
+    # (Dev uses block-sensitive-files.sh instead; Architect/SME have disallowedTools)
     exit 0
     ;;
 esac
