@@ -101,6 +101,10 @@ Updates are a single command: `git submodule update --remote .ai-lindale`
 
 See [docs/adoption-guide.md](docs/adoption-guide.md) for the full guide including aistrologer migration steps.
 
+## Roadmap
+
+See [docs/roadmap.md](docs/roadmap.md) for the full roadmap — origin story, current state, and where we're headed.
+
 ## Related
 
 - Originally prototyped in: [aistrologer](https://github.com/grinnellian/aistrologer)
