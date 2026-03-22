@@ -150,6 +150,9 @@ git submodule update --init
 bash .ai-lindale/scripts/install.sh
 ```
 
+**`GH_TOKEN` overrides `gh auth login`:**
+If `GH_TOKEN` is set in your environment (e.g., from a prior dev container session or bashrc), it takes precedence over `gh auth login` — even if the token has insufficient scopes. Symptoms: `gh issue create` returns "Resource not accessible by personal access token" while `gh auth status` shows you're logged in. Fix: `unset GH_TOKEN` or remove it from your shell profile, then restart your terminal. The OAuth token from `gh auth login` (stored in `~/.config/gh/hosts.yml`) has full scopes; limited PATs do not.
+
 ## Future: npm Migration Path
 
 When ready, the framework can be published as an npm package. The `postinstall` script does what `install.sh` does — symlinks from `node_modules/ai-lindale/` into `.claude/`. The linglink and ownership model don't change.
