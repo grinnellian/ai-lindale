@@ -100,18 +100,20 @@ The framework currently targets greenfield projects — start fresh, generate ag
 | INFRA-003 | GitHub PAT provisioning across platforms |
 | INFRA-001 | Release hygiene for public distributions |
 
-### Layer 5: Multi-Agent Systems
+### Layer 5: AFK Orchestration
 
-The longer-term evolution: moving beyond Claude Code's built-in subagent model to purpose-built multi-agent orchestration.
+This is the end-state vision: **conduct the chorus entirely through GitHub, AFK.** The user doesn't need a terminal open or a Claude Code session running. They interact through issues, PR reviews, labels, and reverts — the same control surface as managing any remote team. The agent team is a set of collaborators who happen to not be human.
 
-**Agent SDK migration.** EPIC-001 envisions using the Claude Agent SDK for persistent, long-running multi-agent systems — agents that maintain state across sessions, coordinate asynchronously, and scale beyond a single Claude Code instance.
+The whole point of git: if you don't like what the agents did, `git revert` back to the last known good. Agents commit early and often — small, reviewable, revertable units of work, never one giant commit at the end. The issue thread becomes the audit trail. PRs are the review surface. Labels are the readiness gates.
 
-**Multi-agent meetings.** FEAT-001 proposes structured multi-agent deliberation — the architect presents a plan, the security SME challenges it, the dev estimates effort, and the TPM synthesizes a decision. This is a natural extension of the pluggable workloop (EPIC-002) but requires richer inter-agent communication than subagent spawning provides.
+This requires a trigger mechanism (GitHub Actions, webhook, or long-running service) that starts agent work from GitHub events. The current architecture (Claude Code CLI + subagents) is the inner loop; AFK orchestration wraps it in an outer loop.
 
 | Issue | Summary |
 |-------|---------|
-| EPIC-001 | Agent SDK multi-agent system |
+| FEAT-003 | AFK orchestration — conduct the chorus via GitHub |
+| EPIC-001 | Agent SDK multi-agent system (possible substrate) |
 | FEAT-001 | Multi-agent meetings via subagents and external orchestration |
+| DX-011 | Escalation protocol (critical for AFK safety) |
 
 ### Supporting Work
 
