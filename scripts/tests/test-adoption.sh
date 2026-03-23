@@ -36,8 +36,9 @@ setup_project() {
   echo '#!/bin/bash' > "$FRAMEWORK/scripts/hooks/enforce-write-paths.sh"
   chmod +x "$FRAMEWORK/scripts/hooks/"*.sh
 
-  # Copy template
+  # Copy templates
   cp "$REPO_ROOT/templates/team-config.yml" "$FRAMEWORK/templates/team-config.yml"
+  cp "$REPO_ROOT/templates/CLAUDE.md" "$FRAMEWORK/templates/CLAUDE.md"
 
   # Copy install.sh
   cp "$REPO_ROOT/scripts/install.sh" "$FRAMEWORK/scripts/install.sh"
@@ -145,10 +146,10 @@ test_hook_symlinks() {
 test_preserves_project_files() {
   setup_project
   mkdir -p .claude/agents
-  echo "# Project-specific consultant" > .claude/agents/astrology-consultant.md
+  echo "# Project-specific SME" > .claude/agents/astrologer.md
   bash "$FRAMEWORK/scripts/install.sh"
-  assert_file_not_symlink ".claude/agents/astrology-consultant.md"
-  assert_file_contains ".claude/agents/astrology-consultant.md" "Project-specific consultant"
+  assert_file_not_symlink ".claude/agents/astrologer.md"
+  assert_file_contains ".claude/agents/astrologer.md" "Project-specific SME"
 }
 
 test_creates_team_config_template() {
@@ -212,6 +213,21 @@ test_symlinks_resolve() {
   done
 }
 
+test_creates_starter_claude_md() {
+  setup_project
+  bash "$FRAMEWORK/scripts/install.sh"
+  assert_file_exists "CLAUDE.md"
+  assert_file_not_symlink "CLAUDE.md"
+  assert_file_contains "CLAUDE.md" "Scaffolded by ai-lindale"
+}
+
+test_does_not_overwrite_existing_claude_md() {
+  setup_project
+  echo "# My existing project" > CLAUDE.md
+  bash "$FRAMEWORK/scripts/install.sh"
+  assert_file_contains "CLAUDE.md" "My existing project"
+}
+
 # --- Guide completeness tests ---
 
 test_guide_exists() {
@@ -250,6 +266,8 @@ run_test "creates linglink README" test_creates_linglink_readme
 run_test "idempotent on re-run" test_idempotent
 run_test "fails when framework dir missing" test_missing_framework_dir
 run_test "symlinks resolve to readable files" test_symlinks_resolve
+run_test "creates starter CLAUDE.md" test_creates_starter_claude_md
+run_test "does not overwrite existing CLAUDE.md" test_does_not_overwrite_existing_claude_md
 echo ""
 echo "--- guide completeness tests ---"
 run_test "adoption guide exists" test_guide_exists

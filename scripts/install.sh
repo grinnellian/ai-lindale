@@ -58,6 +58,14 @@ if [ ! -f .claude/team-config.yml ]; then
   fi
 fi
 
+# Scaffold CLAUDE.md from template if absent
+if [ ! -f CLAUDE.md ]; then
+  if [ -f "$FRAMEWORK_DIR/templates/CLAUDE.md" ]; then
+    cp "$FRAMEWORK_DIR/templates/CLAUDE.md" CLAUDE.md
+    echo "  created CLAUDE.md (customize for your project)"
+  fi
+fi
+
 # Create linglink README
 cat > .claude/README.md << 'LINGLINK'
 # .claude/ structure
@@ -65,7 +73,7 @@ cat > .claude/README.md << 'LINGLINK'
 Core agents (architect, tpm, dev) are symlinked from the Ainulindale
 framework (.ai-lindale/). Do not edit them here — edit the framework repo.
 
-Project-specific agents (e.g. <domain>-consultant) are real files
+Project-specific agents (e.g. <domain>-sme) are real files
 owned by this project.
 
 To update the framework:

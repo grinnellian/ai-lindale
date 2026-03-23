@@ -30,12 +30,10 @@ ai-lindale/
 ├── .claude/
 │   ├── agents/            # Agent definitions (frontmatter + system prompts)
 │   │   ├── architect.md
-│   │   ├── astrology-consultant.md
 │   │   ├── dev.md
 │   │   └── tpm.md
 │   ├── commands/          # Slash commands that invoke agents
 │   │   ├── architect.md
-│   │   ├── astrology-consultant.md
 │   │   ├── autodev.md     # TPM-driven ticket lifecycle orchestration
 │   │   ├── dev.md
 │   │   └── tpm.md
@@ -57,6 +55,8 @@ ai-lindale/
 │   └── tests/
 │       └── test-adoption.sh
 └── templates/
+    ├── sme.md             # Meta-template for TPM-generated domain SME
+    ├── sme-bootstrap.md   # Bootstrap procedure for SME generation
     └── team-config.yml    # Role overrides and project customization
 ```
 
