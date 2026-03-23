@@ -25,7 +25,6 @@ disallowedTools:
   - Edit
   - NotebookEdit
   - Agent
-memory: project
 hooks:
   PreToolUse:
     - matcher: "Bash"
