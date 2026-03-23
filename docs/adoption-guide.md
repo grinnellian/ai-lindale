@@ -1,6 +1,6 @@
 # Adoption Guide
 
-How to adopt the Ainulindale agent framework in a downstream project.
+How to adopt the Lindalë agent framework in a downstream project.
 
 ## Prerequisites
 

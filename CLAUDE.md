@@ -1,4 +1,4 @@
-# Ainulindalë
+# Lindalë
 
 A reusable multi-agent team framework. Defines role-based agents with lifecycle orchestration, tool scoping, and workflow automation.
 

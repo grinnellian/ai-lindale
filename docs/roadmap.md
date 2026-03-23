@@ -2,7 +2,7 @@
 
 ## Origin Story
 
-Ainulindale started inside [aistrologer](https://github.com/grinnellian/aistrologer), a side project where the pattern of structured multi-agent collaboration first emerged organically. The realization: the interesting part wasn't the astrology app — it was the *way the agents worked together*. A TPM that creates issues and drives lifecycle. An architect that plans before code is written. A dev that implements in isolation. Enforcement hooks that keep each role in its lane.
+Lindalë started inside [aistrologer](https://github.com/grinnellian/aistrologer), a side project where the pattern of structured multi-agent collaboration first emerged organically. The realization: the interesting part wasn't the astrology app — it was the *way the agents worked together*. A TPM that creates issues and drives lifecycle. An architect that plans before code is written. A dev that implements in isolation. Enforcement hooks that keep each role in its lane.
 
 The agents were tightly coupled to aistrologer's domain. DX-001 through DX-003 extracted and genericized them into this standalone framework. The name — from Tolkien's creation myth, the Music of the Ainur — reflects the aspiration: independent voices, each with their own part, producing something coherent together.
 
@@ -47,18 +47,33 @@ The framework's foundation is functional but has known gaps that affect daily us
 
 ### Layer 2: Trust and Safety
 
-Agents that write code and run commands need hard boundaries. The current enforcement works but has gaps exposed by real usage.
+Agents that write code and run commands need hard boundaries. The current enforcement works but has gaps exposed by real usage. EPIC-003 (Security Hardening Roadmap) provides the comprehensive threat analysis and phased plan for this layer.
 
-**Permission hardening.** DX-022 proposes replacing broad sandbox mode with explicit allowlists — more granular, more auditable. DX-020 expands the Dev agent's git denylist to prevent accidental force-pushes and branch deletions.
+**Security hardening roadmap.** An external security SME audit produced a full threat matrix by agent role, identifying the TPM as the highest-value prompt injection target (reads untrusted issue content, has write access to agent definitions and memory). The roadmap establishes a risk benchmark: *an agent in a container should be no more dangerous than a malicious human dev.* Each issue below delivers incremental safety; the maturity progression ships independently.
 
-**Credential safety.** DX-026 addresses credential echoing — agents inconsistently handle tokens in tool output. Some Claude Code instances refuse to display keys; others print them verbatim. The framework needs its own guardrails: PreToolUse hooks that block credential-revealing commands, agent prompt instructions about redaction, and pattern-matching on tool output.
+**Self-dev/deployed mode detection.** INFRA-005 introduces automatic mode detection via the submodule symlink boundary. In self-dev mode, agent definitions are work product (mutable through PRs). In deployed mode, they're infrastructure (immutable symlinks). This distinction gates hook behavior, network allowlists, credential scopes, and write permissions across the entire security model.
+
+**Permission hardening.** DX-022 proposes replacing broad sandbox mode with explicit allowlists — more granular, more auditable. The role schema in team-config.yml (DX-005) becomes the single source of truth; a `generate-enforcement.sh` produces hook scripts from the schema. DX-020 expands the Dev agent's git denylist, with known bypass vectors (quoted pipes, backtick subshells, heredocs) documented as accepted risks under defense-in-depth.
+
+**Prompt injection defense.** INFRA-006 layers three mitigations for the TPM: a data/control separation directive (issue bodies are DATA, not INSTRUCTIONS), scoped write paths that block core agent definition modification, and a content sanitization hook that detects verbatim injection from issue text into agent writes.
+
+**Credential safety.** DX-026 addresses credential echoing. INFRA-004 provides per-role credential scoping via GitHub App installation tokens, so a compromised Dev doesn't have TPM-level GitHub access.
+
+**Supply chain defense.** FEAT-004 adds layered package filtering: domain allowlist (INFRA-002), lockfile enforcement (PreToolUse hook), and a package evaluation SME that checks metadata before approving unknown dependencies.
+
+**Runaway prevention.** DX-029 adds `maxTurns` to agent frontmatter as a safety valve against infinite loops.
 
 **Auth isolation.** DX-016 scopes MCP server access per agent, so the Dev agent can't access the TPM's GitHub issue API and vice versa.
 
 | Issue | Summary |
 |-------|---------|
-| DX-022 | Replace sandbox with explicit allowlists |
-| DX-020 | Expand Dev agent git denylist |
+| EPIC-003 | Security hardening roadmap (umbrella — threat matrix, risk benchmark, maturity progression) |
+| INFRA-005 | Self-dev/deployed mode detection via symlink boundary |
+| INFRA-006 | Prompt injection defense for TPM agent |
+| FEAT-004 | Package evaluation agent for supply chain defense |
+| DX-029 | Add maxTurns to agent frontmatter as runaway prevention |
+| DX-022 | Replace sandbox with explicit allowlists (+ generated enforcement from schema) |
+| DX-020 | Expand Dev agent git denylist (+ documented bypass vectors) |
 | DX-026 | Guardrail against credential echoing |
 | DX-016 | Per-agent auth isolation via MCP server scoping |
 | DX-024 | Subagent permission inheritance for research tasks |
@@ -83,7 +98,7 @@ This is the big architectural evolution. Today's workloop is hardcoded: TPM → 
 
 The framework currently targets greenfield projects — start fresh, generate agents, go. Real-world adoption also means brownfield: existing projects with existing code, existing debt, and existing contributors who may not have formal dev training.
 
-**Brownfield adoption.** A different entry point: audit the existing project → generate a standardization plan → incrementally introduce agents. The wickerman-os project (a self-hosted AI platform built by a self-taught developer) is the test case. The "chunnel" strategy: converge from both ends, making lindale ready for brownfield while making the target project ready to receive it.
+**Brownfield adoption.** A different entry point: audit the existing project → generate a standardization plan → incrementally introduce agents. The wickerman-os project (a self-hosted AI platform built by a self-taught developer) is the test case. The "chunnel" strategy: converge from both ends, making Lindalë ready for brownfield while making the target project ready to receive it.
 
 **Cross-repo audit.** FEAT-002 adds an `/audit-repo` command for structured analysis of external repositories. This supports brownfield evaluation, dependency auditing, and reference analysis. The command needs scoped `gh` CLI access (DX-024) to work.
 
@@ -108,6 +123,8 @@ The whole point of git: if you don't like what the agents did, `git revert` back
 
 This requires a trigger mechanism (GitHub Actions, webhook, or long-running service) that starts agent work from GitHub events. The current architecture (Claude Code CLI + subagents) is the inner loop; AFK orchestration wraps it in an outer loop.
 
+**CLI-based agent bounce.** Rather than deepening Claude Code's subagent tree (hard-limited to 1 level), the orchestrator launches each agent as a separate CLI invocation with its own permission mode, hook enforcement, and credential scope. This eliminates the nesting depth limit, enables platform independence (the orchestrator doesn't care if the backend is `claude`, `ollama`, or a custom model server), and creates natural audit boundaries. Agents communicate via GitHub state (issues, PR comments, labels) — not shared memory or env vars.
+
 | Issue | Summary |
 |-------|---------|
 | FEAT-003 | AFK orchestration — conduct the chorus via GitHub |
@@ -117,11 +134,11 @@ This requires a trigger mechanism (GitHub Actions, webhook, or long-running serv
 
 ### Infrastructure Horizon: Multi-Project Orchestration
 
-When lindale orchestrates multiple projects simultaneously — each in its own container, each with its own agent team — credential management becomes infrastructure. A lightweight credential distribution service (working name: postman-pat) issues per-repo and per-role PATs to containers at startup. This likely involves Kubernetes for container orchestration, secrets management, and network policy enforcement. GitHub Apps (installation tokens) may replace PATs for better scoping.
+When Lindalë orchestrates multiple projects simultaneously — each in its own container, each with its own agent team — credential management becomes infrastructure. A lightweight credential distribution service (working name: postman-pat) mints short-lived GitHub App installation tokens scoped per-role (Dev: contents:rw on single repo; TPM: issues:rw + pulls:rw; Architect: read-only). Advanced mode: the network proxy (INFRA-002) injects Authorization headers so agents never see raw credentials. The broker interface (`request_credential(role, service) -> scoped_token`) abstracts over GitHub Apps, GitLab project tokens, and local model API keys for platform independence.
 
 | Issue | Summary |
 |-------|---------|
-| INFRA-004 | Credential distribution service for multi-project orchestration |
+| INFRA-004 | Credential distribution service (GitHub App tokens, broker design, proxy-injected creds) |
 | INFRA-003 | GitHub PAT provisioning (single-project precursor) |
 | DX-016 | Per-agent auth isolation via MCP server scoping |
 
@@ -145,4 +162,4 @@ Issues that improve quality of life without fitting neatly into a layer.
 | [aistrologer](https://github.com/grinnellian/aistrologer) | Origin project; first downstream consumer | Adopted via submodule |
 | [wickerman-os](https://github.com/grinnellian/wickerman-os) | Brownfield test case; self-hosted AI platform | Not yet adopted; beta2 standardization in progress |
 
-The wickerman-os experience (2026-03-22) directly informed Layers 3 and 4 of this roadmap. Its devcontainer and firewall work may flow back upstream into lindale's INFRA-002 template.
+The wickerman-os experience (2026-03-22) directly informed Layers 3 and 4 of this roadmap. Its devcontainer and firewall work may flow back upstream into Lindalë's INFRA-002 template.

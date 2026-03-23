@@ -2,9 +2,9 @@
 
 ## Context
 
-TPM audited `grinnellian/wickerman-os` to identify lindale roadmap items.
+TPM audited `grinnellian/wickerman-os` to identify Lindalë roadmap items.
 The upstream author (Tabulanis) is the user's friend with no formal dev training.
-The user is converging from both ends: making lindale ready for brownfield adoption
+The user is converging from both ends: making Lindalë ready for brownfield adoption
 while making wickerman-os ready to receive it ("chunnel" approach).
 
 ## Key Decisions from Discussion
@@ -20,7 +20,7 @@ points for quality gates. Gates are friction generators by design (honest
 antagonism). This became EPIC-002.
 
 ### Greenfield vs brownfield adoption
-Lindale has implicitly targeted greenfield. Wickerman-os is the brownfield test
+Lindalë has implicitly targeted greenfield. Wickerman-os is the brownfield test
 case. Different entry points:
 - Greenfield: bootstrap interview → generate agents → go
 - Brownfield: audit existing → standardization plan → incrementally introduce agents
@@ -30,12 +30,12 @@ Determine user background lightly, but don't over-prescribe starting material.
 Less is more for context engineering.
 
 ### DX-023 hook should be PreToolUse not PostToolUse
-User carried lindale patterns to wickerman-os; PostToolUse wasn't working.
+User carried Lindalë patterns to wickerman-os; PostToolUse wasn't working.
 PreToolUse with context injection is the working pattern.
 
 ### DevContainer solves sandboxing blocker
 The wickerman-os devcontainer with tinyproxy domain filtering may solve
-lindale's DX-022 sandboxing pain point. User is excited about this.
+Lindalë's DX-022 sandboxing pain point. User is excited about this.
 
 ## Issues to Create (blocked by GH token permissions)
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ainulindale framework installer.
+# Lindalë framework installer.
 # Creates symlinks from project locations into the .ai-lindale/ submodule.
 # Run from the project root after adding the submodule.
 
@@ -70,7 +70,7 @@ fi
 cat > .claude/README.md << 'LINGLINK'
 # .claude/ structure
 
-Core agents (architect, tpm, dev) are symlinked from the Ainulindale
+Core agents (architect, tpm, dev) are symlinked from the Lindalë
 framework (.ai-lindale/). Do not edit them here — edit the framework repo.
 
 Project-specific agents (e.g. <domain>-sme) are real files
