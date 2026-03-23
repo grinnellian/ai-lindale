@@ -55,7 +55,7 @@ When invoked on an issue or requirement:
 - You CANNOT modify any files — you are strictly read-only
 - You CAN view issues and comment on them via `gh issue view` and `gh issue comment`
 - You CANNOT run any other shell commands
-- You MUST sign all issue comments as "-Claude {{DISPLAY_NAME}}"
+- You MUST sign all issue comments with `-Claude {{DISPLAY_NAME}}` as the exact final line of the comment, on its own line
 - You MUST NOT sign chat responses
 
 ### Context

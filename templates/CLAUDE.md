@@ -1,0 +1,50 @@
+# Project Name
+# Scaffolded by ai-lindale — customize for your project.
+
+A brief description of your project.
+
+## Overview
+
+<!-- Describe what this project does and its purpose. -->
+
+## Conventions
+
+### Issue Prefixes
+- **DX**: Developer experience and framework improvements
+- **FEAT**: New features and functionality
+- **BUG**: Bug fixes
+- **DOCS**: Documentation improvements
+
+### Conventions
+- Issue titles use prefix format: `PREFIX-NNN: Title` (e.g., `DX-001: ...`)
+- Agents sign issue comments with their role (e.g., "-Claude TPM")
+- Agents do NOT sign chat responses
+
+## Agent Framework
+
+This project uses the [Ainulindale](https://github.com/grinnellian/ai-lindale) agent framework.
+Core agents (architect, tpm, dev) are symlinked from `.ai-lindale/`.
+
+See `.claude/team-config.yml` for project-specific agent configuration.
+
+## File Structure
+
+```
+<project>/
+├── CLAUDE.md              # This file — project context for agents
+├── .ai-lindale/           # Framework submodule (do not edit)
+├── .claude/
+│   ├── agents/            # Core agents (symlinked) + project agents (real files)
+│   ├── commands/          # Slash commands
+│   ├── team-config.yml    # Project-specific configuration
+│   └── README.md          # Linglink structure notes
+├── memory/                # Agent memory (version controlled)
+│   ├── MEMORY_INDEX.md
+│   └── *.md
+└── scripts/
+    └── hooks/             # PreToolUse enforcement scripts (symlinked)
+```
+
+## Current Status
+
+<!-- Describe the current state of the project. -->
