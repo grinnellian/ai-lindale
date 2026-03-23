@@ -78,14 +78,26 @@ Agent memory lives in `memory/` within the repo — never in `~/.claude/` or out
 
 **Security rule:** Agents must never read or write outside the working directory for memory or any other purpose.
 
+## Agent Behavior Principles
+
+### Retry and Loop Detection
+
+**Autoretry is expected behavior.** Transient failures (network errors, API rate limits, git conflicts) are normal. Agents should retry with backoff, not panic on first failure. Everything fails all the time — design for it.
+
+**But detect insanity loops.** If the same operation fails the same way 3+ times, the agent MUST stop retrying and change approach — try an alternative method, escalate to the user, or park the work (DX-011). Repeating a failing operation identically is never the right move. Leave breadcrumbs (in task descriptions, issue comments, or memory) so you or another agent can recognize "this was already tried and failed."
+
+The guard rails: `maxTurns` (DX-029) provides a hard ceiling, but agents should self-regulate well before hitting it.
+
 ## Development Workflow
 
 This repo develops the framework itself. To test changes:
 1. Modify agent definitions in `.claude/agents/`
-2. Test by invoking the agent via its slash command (e.g., `/tpm`)
+2. Launch with `claude --agent tpm` (or `./lindale` when available) for full hook enforcement
 3. Use `/autodev` in a TPM tab to run the full ticket lifecycle end-to-end
 4. Validate hook scripts work correctly with the agent's tool usage
 5. Downstream testing: apply changes to aistrologer and verify
+
+**Note:** Slash commands (`/tpm`, `/dev`, `/architect`) load the agent's system prompt but do NOT activate frontmatter hooks. Use `--agent` for enforced operation. See BUG-003 (#54).
 
 ## Current Status
 
