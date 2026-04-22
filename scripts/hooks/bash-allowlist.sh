@@ -168,7 +168,17 @@ check_dev() {
     echo "BLOCKED: Force push not allowed for dev role"
     return 2
   fi
-  if echo "$cmd" | grep -qE 'git\s+push\s+.*-[a-zA-Z]*f'; then
+  # Short-flag force: two patterns needed because branch names can contain
+  # substrings like "-self" (ends in f) that would cause false positives.
+  # Pattern 1: -f flag appearing as the first token directly after 'git push '
+  if echo "$cmd" | grep -qE 'git\s+push\s+-[a-zA-Z]*f[a-zA-Z]*(\s|$)'; then
+    echo "BLOCKED: Force push not allowed for dev role"
+    return 2
+  fi
+  # Pattern 2: -f flag appearing after remote/branch args, preceded by whitespace.
+  # The \s before - ensures we only match real flags, not substrings in branch names
+  # (e.g. dx-032-self-host-detection has no space before its internal dashes).
+  if echo "$cmd" | grep -qE 'git\s+push\s+.*\s-[a-zA-Z]*f[a-zA-Z]*(\s|$)'; then
     echo "BLOCKED: Force push not allowed for dev role"
     return 2
   fi
