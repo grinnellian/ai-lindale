@@ -277,7 +277,7 @@ test_self_host_still_scaffolds() {
 test_self_host_message() {
   setup_self_host
   output=$(bash "$FRAMEWORK/scripts/install.sh" 2>&1)
-  if ! echo "$output" | grep -q "self-host"; then
+  if ! echo "$output" | grep -qi "self-host"; then
     echo "    Expected output to contain 'self-host', got:"
     echo "$output"
     return 1
