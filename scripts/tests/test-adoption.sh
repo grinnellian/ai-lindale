@@ -228,6 +228,70 @@ test_does_not_overwrite_existing_claude_md() {
   assert_file_contains "CLAUDE.md" "My existing project"
 }
 
+# --- self-host tests ---
+
+# Helper: set up a self-host scenario.
+# Requires setup_project + an initial install.sh run to have already happened (so symlinks exist),
+# then replaces symlinked agent/command/hook files with regular files to simulate the framework repo.
+setup_self_host() {
+  setup_project
+  bash "$FRAMEWORK/scripts/install.sh"
+  # Replace symlinks with regular files — this is the "framework source" state
+  for agent in architect tpm dev; do
+    rm -f ".claude/agents/${agent}.md"
+    echo "# Self-host agent: ${agent}" > ".claude/agents/${agent}.md"
+  done
+  for cmd in architect tpm dev; do
+    rm -f ".claude/commands/${cmd}.md"
+    echo "# Self-host command: ${cmd}" > ".claude/commands/${cmd}.md"
+  done
+  if [ -L "scripts/hooks/bash-allowlist.sh" ]; then
+    rm -f "scripts/hooks/bash-allowlist.sh"
+    echo '#!/bin/bash' > "scripts/hooks/bash-allowlist.sh"
+  fi
+}
+
+test_self_host_skips_symlinks() {
+  setup_self_host
+  bash "$FRAMEWORK/scripts/install.sh"
+  # Core agent files must remain regular files — not overwritten with symlinks
+  assert_file_not_symlink ".claude/agents/architect.md"
+  assert_file_not_symlink ".claude/agents/tpm.md"
+  assert_file_not_symlink ".claude/agents/dev.md"
+  assert_file_not_symlink ".claude/commands/architect.md"
+  assert_file_not_symlink "scripts/hooks/bash-allowlist.sh"
+}
+
+test_self_host_still_scaffolds() {
+  setup_self_host
+  # Remove scaffolded files to test re-scaffold
+  rm -f .claude/team-config.yml CLAUDE.md
+  bash "$FRAMEWORK/scripts/install.sh"
+  assert_file_exists ".claude/team-config.yml"
+  assert_file_exists "CLAUDE.md"
+  assert_file_exists ".claude/README.md"
+  # Agent files must still be regular files
+  assert_file_not_symlink ".claude/agents/architect.md"
+}
+
+test_self_host_message() {
+  setup_self_host
+  output=$(bash "$FRAMEWORK/scripts/install.sh" 2>&1)
+  if ! echo "$output" | grep -qi "self-host"; then
+    echo "    Expected output to contain 'self-host', got:"
+    echo "$output"
+    return 1
+  fi
+  return 0
+}
+
+test_force_overrides_self_host() {
+  setup_self_host
+  bash "$FRAMEWORK/scripts/install.sh" --force
+  # With --force, symlinks should have been (re)created even though regular files existed
+  assert_symlink ".claude/agents/architect.md" "../../.ai-lindale/.claude/agents/architect.md"
+}
+
 # --- Guide completeness tests ---
 
 test_guide_exists() {
@@ -268,6 +332,12 @@ run_test "fails when framework dir missing" test_missing_framework_dir
 run_test "symlinks resolve to readable files" test_symlinks_resolve
 run_test "creates starter CLAUDE.md" test_creates_starter_claude_md
 run_test "does not overwrite existing CLAUDE.md" test_does_not_overwrite_existing_claude_md
+echo ""
+echo "--- self-host tests ---"
+run_test "self-host: skips symlinking core files" test_self_host_skips_symlinks
+run_test "self-host: still scaffolds config files" test_self_host_still_scaffolds
+run_test "self-host: prints detection message" test_self_host_message
+run_test "self-host: --force overrides detection" test_force_overrides_self_host
 echo ""
 echo "--- guide completeness tests ---"
 run_test "adoption guide exists" test_guide_exists
