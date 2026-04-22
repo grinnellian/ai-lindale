@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Hook enforcement tests
+        run: bash scripts/hooks/tests/test-hooks.sh
+
+      - name: Install / adoption tests
+        run: bash scripts/tests/test-adoption.sh
