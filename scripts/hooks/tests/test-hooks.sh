@@ -305,6 +305,11 @@ expect_block "Dev: git push -fu (bundled flags) blocked" \
   '{"tool_name":"Bash","tool_input":{"command":"git push -fu origin branch"}}' \
   "dev"
 
+expect_allow "Dev: git push branch name with -self (not a flag)" \
+  "bash-allowlist.sh" \
+  '{"tool_name":"Bash","tool_input":{"command":"git push -u origin dx-032-self-host-detection"}}' \
+  "dev"
+
 expect_block "Dev: git checkout . blocked" \
   "bash-allowlist.sh" \
   '{"tool_name":"Bash","tool_input":{"command":"git checkout ."}}' \
