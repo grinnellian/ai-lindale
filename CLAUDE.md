@@ -2,6 +2,10 @@
 
 A reusable multi-agent team framework. Defines role-based agents with lifecycle orchestration, tool scoping, and workflow automation.
 
+## Project Philosophy
+
+This repo is developed transparently as a teaching artifact. The issue tracker, commit history, and wiki document not just *what* was built but *why* — including dead ends, architectural pivots, and the reasoning behind decisions. Aspiring developers can follow the trail from first principles to working system.
+
 ## Team Roles
 
 Each role is defined in `.claude/agents/<role>.md` — that file is the source of truth for the role's description, tool access, and constraints. See agent files for details.
@@ -101,4 +105,10 @@ This repo develops the framework itself. To test changes:
 
 ## Current Status
 
-**Pre-alpha.** Framework is extracted from [aistrologer](https://github.com/grinnellian/aistrologer) and lives here. Agents are defined, PreToolUse hooks are implemented, and adoption tooling (`scripts/install.sh`, `scripts/sync.sh`) works. See issue tracker for ongoing work.
+**Pre-alpha.** Framework is extracted from [aistrologer](https://github.com/grinnellian/aistrologer) and lives here.
+Agents are defined, adoption tooling (`scripts/install.sh`, `scripts/sync.sh`) works. See issue tracker for ongoing
+work.
+
+**Architecture:** Container-as-boundary with vendored [moat](https://github.com/majorcontext/moat) for credential
+injection. Previous hook-based enforcement was retired — see [Architecture Overview](../../wiki/Architecture-Overview)
+and EPIC-004 (#69) for the pivot rationale. See [ACKNOWLEDGMENTS](ACKNOWLEDGMENTS.md) for upstream attribution.
