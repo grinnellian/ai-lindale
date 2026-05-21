@@ -32,3 +32,73 @@
 **Context:** Wickerman-os is the brownfield test case. The user is converging from both ends — making lindale ready for brownfield while making wickerman-os ready to receive it. Greenfield has been the implicit target so far; brownfield requires audit tooling (FEAT-002), standardization playbooks (DX-025), and lighter-touch bootstrapping.
 
 **Principle:** Less is more for context engineering. Don't over-prescribe starting material.
+         
+  
+  ## Container-as-trust-boundary (EPIC-004 pivot)                                                                       
+                                                                                                                      
+  **Decision:** Replace hook-based enforcement with container isolation. The container IS the security boundary.
+
+  **Rationale:**
+  - PreToolUse hooks are fundamentally incompatible with Claude Code's absolute-path tool interface (BUG-004)
+  - Hooks can't prevent determined escape (heredocs, backtick subshells — acknowledged in bash-allowlist.sh header)     
+  - Container boundary provides hard isolation without fighting the tool interface
+  - moat provides credential injection via TLS-intercepting proxy — agents never see raw tokens                         
+                                                                                                                      
+  **Implication:** Hooks become optional "roleplay rules" for bare-metal sessions, not a security layer. DX-033 removes 
+  them from agent frontmatter for dev-in sessions.                                                                    
+                                                                                                                        
+  ## Moat version pin                                                                                                 
+
+  **Decision:** Pin moat to commit `616f1b3` (pseudo-version `v0.5.1-0.20260421175536-616f1b3464b2`).
+
+  **Rationale:** This is the exact commit verified in the FEAT-008 spike on xo-brain. It includes features not in the   
+  tagged v0.5.0 release (RUNTIME column in `moat list`, multi-runtime metadata). Reproducible like a tag, known-good on
+  our hardware.                                                                                                         
+                                                                                                                      
+  **Action:** Use `go install github.com/majorcontext/moat/cmd/moat@616f1b3` in setup scripts, not `@latest`.           
+  
+  ## Vendor moat — deferred to M3                                                                                       
+                                                                                                                      
+  **Decision:** Use moat as-is (installed binary) for M1/M2. Vendor the source subset into lindale at M3.               
+  
+  **Rationale:**                                                                                                        
+  - Vendoring subset is ~17k LOC production + ~5k gatekeeper — non-trivial to lift now                                
+  - Binary install is sufficient for Phase 0/1 (manually-run `moat run`)
+  - Vendoring becomes worthwhile when k10s needs programmatic control (M3)                                              
+  - MIT-to-MIT license compatible; no legal friction
+                                                                                                                        
+  **Subset boundary (when we do vendor):**                                                                            
+  - Must-have: `internal/{run, container, daemon, config, credential, storage, routing, netrules}` + `providers/{claude,
+   configprovider, github}` + gatekeeper proxy                                                                          
+  - Skip: CLI chrome, TUI, non-target providers (aws, codex, gemini, meta, npm), doctor, quickstart
+  - Friction: AWS provider hardcoded in `internal/run` (requires surgery); Cobra subcommand registration in `root.go`   
+                                                                                                                      
+  ## Token accounting owned by k10s, not moat                                                                           
+                                                                                                                      
+  **Decision:** k10s handles token budget tracking directly, not via `moat trace`.                                      
+  
+  **Rationale:** moat's gatekeeper head-truncates response bodies at 8KB. Anthropic `usage` blocks appear at the end of 
+  responses (non-streaming) or in final `message_delta` events (streaming) — both beyond the 8KB capture window. moat 
+  trace is supplementary evidence, not authoritative accounting.                                                        
+                                                                                                                      
+  ## TPM uses temp files for multi-line GitHub issue bodies
+
+  **Decision:** TPM writes issue/PR bodies to `/tmp/*.md` via `printf` with `\n` escapes, then uses `gh issue create    
+  --body-file /tmp/*.md`.
+                                                                                                                        
+  **Rationale:** The bash-allowlist hook's `extract_commands` function splits on `|`, `&&`, `||`, `;`, and newlines —   
+  treating markdown table pipes as shell pipes and body text as separate commands. `--body-file` sidesteps the parser
+  entirely. This is the canonical pattern until hooks are removed (DX-033).                                             
+                                                                                                                      
+  ## k10s belongs in a separate repo
+
+  **Decision:** k10s (kubernagents) and Cortex will live in their own repo, not in ai-lindale.                          
+  
+  **Rationale:** k10s is an orchestrator that calls `moat run` — it's infrastructure for xo-brain, not part of the      
+  reusable agent framework. Lindale defines roles and workflows; k10s deploys them. Separation keeps lindale portable 
+  for downstream adopters who don't need k10s.                                                                          
+                                                                                                                      
+  **Tracked in:** EPIC-005 (#70)
+
+  That's all the state worth persisting. Everything else is tracked in issues or on the wiki. Once DX-033 lands, this   
+  file can be written directly — and the TPM temp-file decision becomes historical footnote.
