@@ -1,2 +1,5 @@
 # Wiki clone (developer tool, not part of the product)
 .wiki/
+
+# Self-referencing submodule (dev testing, not part of the product)
+.ai-lindale/
