@@ -71,11 +71,45 @@ future operator gets that "this file is intentionally not upstream."
 
 ## Subagent finalization — TPM picks up where dev drops
 
-**Problem:** dev subagents dispatched with `isolation: "worktree"` reliably fail
-on `Bash` calls (`git commit`, `git push`, `gh pr create`, `docker compose
-exec`) even though their agent definition grants Bash. Repro'd 4× downstream;
-tracked upstream as BUG-006 (#77). Suspected Claude Code platform constraint,
+**Problem:** dev subagents dispatched via the Agent tool with `isolation:
+"worktree"` reliably fail on `Bash`, `Write`, and `Edit` calls even though their
+agent definition grants all three. Repro'd 6× on BUG-007 (#78), 4× downstream;
+tracked locally as BUG-006 (#77). **Confirmed Claude Code platform constraint**,
 not a Lindalë frontmatter issue.
+
+**Upstream tracker (anthropics/claude-code):**
+- #37730 — subagents don't inherit `settings.local.json`; worktree path doesn't
+  match user-scope settings expectations
+- #25526 — `Bash(*)` allowlist doesn't propagate to subagents
+- #38859 — `bypassPermissions` silently ignored for Agent-tool subagents
+- #40241 — `--dangerously-skip-permissions` doesn't propagate either
+- #57037 — parallel-dispatch cascade: first Bash succeeds, subsequent denied
+- #29110 — bypassPermissions + worktree fundamentally broken; cleanup silently
+  destroys uncommitted agent work
+- #37258 — worktree subagents lose parent OAuth credentials (regression 2.1.81)
+- #31940 — long-term fix to watch: per-subagent `cwd` / `additionalDirectories`
+  in frontmatter
+
+**Diagnostic signature:** if the agent reports first Bash call (e.g. `git
+checkout`) succeeds and subsequent calls denied, that's #57037's cascade.
+
+**Hypothesis (needs A/B):** launching the parent with `claude -w <name>` puts
+the parent inside a worktree, creating nested-worktree when Dev is dispatched
+with `isolation: "worktree"`. Subagent worktree branches from `origin/HEAD`, not
+the parent's branch — Dev's staged work can land on a sibling branch the outer
+session never sees. Anecdotally the stage-and-finalize workaround holds when
+the worktree is requested conversationally but not when launched via `-w`.
+
+**Asymmetry to remember:** dev invoked via `/dev` slash command (frontmatter
+inert per BUG-003) works fine — no worktree, normal Write/Edit on main tree.
+Dev invoked via Agent tool from TPM honors frontmatter `isolation: worktree`
+and hits the bugs above. This is why catalyst-build's manual `/dev` workflow
+succeeds while TPM-driven `/autodev` dispatch fails on the same agent
+definition.
+
+**Real fix:** EPIC-004 dev-in containers — sidesteps worktree dispatch
+entirely. Heavier parallelization cost than worktrees but unblocks dev work
+under the current Claude Code platform.
 
 **Pattern:** **dev subagent stages, TPM finalizes.** Expect the subagent's
 return payload to contain *staged but unpushed* work. The parent TPM session
