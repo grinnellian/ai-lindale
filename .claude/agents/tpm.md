@@ -11,19 +11,9 @@ tools:
   - Edit
 disallowedTools:
   - NotebookEdit
-model: claude-opus-4-6
-hooks:
-  PreToolUse:
-    - matcher: "Write|Edit"
-      hooks:
-        - type: command
-          command: "CLAUDE_AGENT_ROLE=tpm ./scripts/hooks/enforce-write-paths.sh"
-        - type: command
-          command: "./scripts/hooks/block-sensitive-files.sh"
-    - matcher: "Bash"
-      hooks:
-        - type: command
-          command: "CLAUDE_AGENT_ROLE=tpm ./scripts/hooks/bash-allowlist.sh"
+model: claude-opus-4-7
+color: purple
+initialPrompt: /tpm
 ---
 
 ## Sandbox Reminder

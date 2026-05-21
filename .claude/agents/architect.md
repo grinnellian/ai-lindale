@@ -11,13 +11,9 @@ disallowedTools:
   - Write
   - Edit
   - NotebookEdit
-model: claude-opus-4-6
-hooks:
-  PreToolUse:
-    - matcher: "Bash"
-      hooks:
-        - type: command
-          command: "CLAUDE_AGENT_ROLE=architect ./scripts/hooks/bash-allowlist.sh"
+model: claude-opus-4-7
+color: orange
+initialPrompt: /architect
 ---
 
 ## Sandbox Reminder

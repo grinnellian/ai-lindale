@@ -12,16 +12,8 @@ tools:
   - NotebookEdit
 model: claude-sonnet-4-6
 isolation: worktree
-hooks:
-  PreToolUse:
-    - matcher: "Write|Edit"
-      hooks:
-        - type: command
-          command: "./scripts/hooks/block-sensitive-files.sh"
-    - matcher: "Bash"
-      hooks:
-        - type: command
-          command: "CLAUDE_AGENT_ROLE=dev ./scripts/hooks/bash-allowlist.sh"
+color: blue
+initialPrompt: /dev
 ---
 
 ## Sandbox Reminder
