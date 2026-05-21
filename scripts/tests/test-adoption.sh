@@ -315,6 +315,114 @@ test_guide_has_migration_section() {
   assert_file_contains "$REPO_ROOT/docs/adoption-guide.md" "aistrologer"
 }
 
+# --- local-override tests ---
+
+# Helper: create a regular file at a managed path before install.sh runs.
+# Args: $1 = path relative to PROJECT, $2 = content
+setup_with_override() {
+  local path="$1"
+  local content="$2"
+  mkdir -p "$(dirname "$path")"
+  echo "$content" > "$path"
+}
+
+test_override_regular_file_skipped() {
+  setup_project
+  setup_with_override ".claude/agents/architect.md" "# local override"
+  bash "$FRAMEWORK/scripts/install.sh"
+  assert_file_not_symlink ".claude/agents/architect.md" &&
+  assert_file_contains ".claude/agents/architect.md" "# local override" &&
+  assert_symlink ".claude/agents/tpm.md" "../../.ai-lindale/.claude/agents/tpm.md" &&
+  assert_symlink ".claude/agents/dev.md" "../../.ai-lindale/.claude/agents/dev.md"
+}
+
+test_override_skip_message() {
+  setup_project
+  setup_with_override ".claude/agents/architect.md" "# local override"
+  output=$(bash "$FRAMEWORK/scripts/install.sh" 2>&1)
+  if ! echo "$output" | grep -qi "skipped"; then
+    echo "    Expected output to contain 'skipped', got:"
+    echo "$output"
+    return 1
+  fi
+  if ! echo "$output" | grep -q ".claude/agents/architect.md"; then
+    echo "    Expected output to mention the skipped path, got:"
+    echo "$output"
+    return 1
+  fi
+}
+
+test_correct_symlink_is_noop() {
+  setup_project
+  bash "$FRAMEWORK/scripts/install.sh"
+  # Second run — correct symlinks should not print "linked" again
+  output=$(bash "$FRAMEWORK/scripts/install.sh" 2>&1)
+  if echo "$output" | grep -q "  linked .claude/agents/architect.md"; then
+    echo "    Second run should not re-link an already-correct symlink"
+    echo "$output"
+    return 1
+  fi
+  # Symlinks still correct
+  assert_symlink ".claude/agents/architect.md" "../../.ai-lindale/.claude/agents/architect.md"
+}
+
+test_wrong_symlink_refreshed() {
+  setup_project
+  bash "$FRAMEWORK/scripts/install.sh"
+  # Replace correct symlink with a stale/wrong one
+  rm ".claude/agents/architect.md"
+  ln -s "../../some-other-target" ".claude/agents/architect.md"
+  bash "$FRAMEWORK/scripts/install.sh"
+  assert_symlink ".claude/agents/architect.md" "../../.ai-lindale/.claude/agents/architect.md"
+}
+
+test_force_overrides_regular_file() {
+  setup_project
+  setup_with_override ".claude/agents/architect.md" "# local override"
+  bash "$FRAMEWORK/scripts/install.sh" --force
+  assert_symlink ".claude/agents/architect.md" "../../.ai-lindale/.claude/agents/architect.md"
+}
+
+test_override_applies_to_commands_and_hooks() {
+  setup_project
+  setup_with_override ".claude/commands/dev.md" "# local command override"
+  setup_with_override "scripts/hooks/bash-allowlist.sh" "#!/bin/bash\n# local hook override"
+  bash "$FRAMEWORK/scripts/install.sh"
+  assert_file_not_symlink ".claude/commands/dev.md" &&
+  assert_file_contains ".claude/commands/dev.md" "# local command override" &&
+  assert_file_not_symlink "scripts/hooks/bash-allowlist.sh"
+}
+
+test_summary_line() {
+  setup_project
+  # Pre-create one correct symlink for architect agent (will be ok after install)
+  mkdir -p .claude/agents
+  ln -s "../../.ai-lindale/.claude/agents/architect.md" ".claude/agents/architect.md"
+  # Create a real-file override for tpm command (will be skipped)
+  setup_with_override ".claude/commands/tpm.md" "# local tpm override"
+  # Let dev agent and others be fresh-linked
+  output=$(bash "$FRAMEWORK/scripts/install.sh" 2>&1)
+  if ! echo "$output" | grep -qi "linked:"; then
+    echo "    Expected summary line with 'linked:', got:"
+    echo "$output"
+    return 1
+  fi
+  if ! echo "$output" | grep -qi "skipped:"; then
+    echo "    Expected summary line with 'skipped:', got:"
+    echo "$output"
+    return 1
+  fi
+  if ! echo "$output" | grep -qi "ok:"; then
+    echo "    Expected summary line with 'ok:', got:"
+    echo "$output"
+    return 1
+  fi
+}
+
+test_guide_documents_local_override() {
+  assert_file_contains "$REPO_ROOT/docs/adoption-guide.md" "local override"
+}
+
 # --- Run all tests ---
 
 echo "=== DX-007 Adoption Tests ==="
@@ -344,6 +452,16 @@ run_test "adoption guide exists" test_guide_exists
 run_test "guide references submodule commands" test_guide_references_subtree_commands
 run_test "guide has file ownership table" test_guide_has_ownership_table
 run_test "guide has aistrologer migration section" test_guide_has_migration_section
+echo ""
+echo "--- local-override tests ---"
+run_test "override: regular file is skipped, not clobbered" test_override_regular_file_skipped
+run_test "override: skip prints path and 'skipped'" test_override_skip_message
+run_test "override: correct symlink is no-op on re-run" test_correct_symlink_is_noop
+run_test "override: wrong symlink is refreshed" test_wrong_symlink_refreshed
+run_test "override: --force replaces regular file override" test_force_overrides_regular_file
+run_test "override: skip applies to commands and hooks" test_override_applies_to_commands_and_hooks
+run_test "override: summary line reports linked/ok/skipped" test_summary_line
+run_test "guide: documents local override behavior" test_guide_documents_local_override
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ] || exit 1
