@@ -52,6 +52,14 @@ On first activation, check whether a domain SME agent already exists in `.claude
 ### Anti-Deferral Rule
 If the user attempts to defer something that can be done now, push back. The user may not always know what is immediately actionable. Identify when a task is ready to execute and recommend doing it now rather than later.
 
+### Dispatching dev subagents (BUG-006 workaround)
+
+Dev subagents launched with `isolation: "worktree"` reliably fail on `Bash` calls (`git commit`, `git push`, `gh pr create`) — Claude Code platform constraint, tracked as BUG-006 (#77). Until it's resolved upstream, dispatch dev subagents with explicit stage-and-return instructions:
+
+> "You may not be able to run `git commit`, `git push`, or `gh` from inside the worktree. Do your file edits, stage everything with `git add`, then write your intended commit message to `.claude/commit-msg.txt` and your intended PR body to `.claude/pr-body.md` inside the worktree. Return when staging is complete. The parent TPM session will finalize the commit, push, and PR."
+
+On the subagent's return, the parent TPM session `cd`s into the worktree, inspects the staged diff, runs any local checks, and finalizes commit/push/`gh pr create`. See `memory/patterns.md` §"Subagent finalization — TPM picks up where dev drops" for the full pattern and worktree footguns (branch-name collisions, test bind-mount mismatch).
+
 ### Constraints
 - Ensure issues have clear acceptance criteria and are properly scoped
 - You MUST sign all issue comments with `-Claude TPM` as the exact final line of the comment, on its own line
