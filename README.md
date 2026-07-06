@@ -95,7 +95,15 @@ See [docs/adoption-guide.md](docs/adoption-guide.md) for the full guide includin
 
 ## Roadmap
 
-See [docs/roadmap.md](docs/roadmap.md) for the full roadmap — origin story, current state, and where we're headed.
+Project direction, milestones, and decisions live on the [wiki](https://github.com/grinnellian/ai-lindale/wiki):
+
+- [Roadmap](https://github.com/grinnellian/ai-lindale/wiki/Roadmap) — milestones (M0–M3), current state, and where we're headed
+- [Vision](https://github.com/grinnellian/ai-lindale/wiki/Vision) — what Lindalë is for
+- [Architecture Overview](https://github.com/grinnellian/ai-lindale/wiki/Architecture-Overview) — the stack and how the pieces fit
+- [Architecture Decisions](https://github.com/grinnellian/ai-lindale/wiki/Architecture-Decisions) — ADRs and the reasoning behind them
+- [Operator's Guide](https://github.com/grinnellian/ai-lindale/wiki/Operators-Guide) — for humans driving the agent team
+
+Active work is tracked in [GitHub milestones](https://github.com/grinnellian/ai-lindale/milestones) and the [Issue Map](https://github.com/grinnellian/ai-lindale/wiki/Issue-Map).
 
 ## Related
 

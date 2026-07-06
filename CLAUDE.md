@@ -111,6 +111,29 @@ This repo develops the framework itself. To test changes:
 Agents are defined, adoption tooling (`scripts/install.sh`, `scripts/sync.sh`) works. See issue tracker for ongoing
 work.
 
-**Architecture:** Container-as-boundary with vendored [moat](https://github.com/majorcontext/moat) for credential
-injection. Previous hook-based enforcement was retired — see [Architecture Overview](../../wiki/Architecture-Overview)
-and EPIC-004 (#69) for the pivot rationale. See [ACKNOWLEDGMENTS](ACKNOWLEDGMENTS.md) for upstream attribution.
+**Architecture:** Container-as-boundary with [moat](https://github.com/majorcontext/moat) (pinned binary, vendoring
+deferred to M3) for credential injection. Previous hook-based enforcement was retired — see
+[Architecture Overview](../../wiki/Architecture-Overview) and EPIC-004 (#69) for the pivot rationale. See
+[ACKNOWLEDGMENTS](ACKNOWLEDGMENTS.md) for upstream attribution.
+
+## Where project state lives
+
+**Milestones (GitHub):** [M0 Housekeeping](https://github.com/grinnellian/ai-lindale/milestone/1),
+[M1 Moat Foundation](https://github.com/grinnellian/ai-lindale/milestone/2),
+[M2 lindale CLI](https://github.com/grinnellian/ai-lindale/milestone/3),
+[M3 k10s MVP](https://github.com/grinnellian/ai-lindale/milestone/4). M1 is the current critical path;
+M0 runs in parallel.
+
+**Wiki (authoritative for narrative state):**
+- [Roadmap](../../wiki/Roadmap) — milestone breakdown and sequencing
+- [Vision](../../wiki/Vision) — what Lindalë is for ("safe for the native vibecoder")
+- [Architecture Overview](../../wiki/Architecture-Overview) — the stack
+- [Architecture Decisions](../../wiki/Architecture-Decisions) — ADRs (numbered, append-only)
+- [Operator's Guide](../../wiki/Operators-Guide) — for humans driving the team (intentionally not in `docs/`)
+- [Tech Tree](../../wiki/Tech-Tree), [Issue Map](../../wiki/Issue-Map) — dependency graph and grouped backlog
+
+**In-repo (authoritative for working state):** `memory/decisions.md`, `memory/patterns.md`, `memory/vision.md` —
+agent-readable. New architectural decisions land in `memory/decisions.md` first; promote to a wiki ADR when stable.
+
+**TPMs: when status questions arise, check milestones and the wiki Roadmap first.** Don't recreate roadmap content
+in-repo — keep `docs/` for adoption-facing material (install, troubleshooting), wiki for direction and reasoning.
