@@ -16,4 +16,4 @@ git submodule update --remote "$FRAMEWORK_DIR"
 
 echo ""
 echo "Symlinks point into the submodule — no reinstall needed."
-echo "If new agents or hooks were added, re-run: bash .ai-lindale/scripts/install.sh"
+echo "If new agents or commands were added, re-run: bash .ai-lindale/scripts/install.sh"

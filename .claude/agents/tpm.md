@@ -9,8 +9,6 @@ tools:
   - Agent(architect, dev)
   - Write
   - Edit
-disallowedTools:
-  - NotebookEdit
 model: claude-opus-4-7
 color: purple
 initialPrompt: /tpm

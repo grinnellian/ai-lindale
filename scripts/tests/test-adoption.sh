@@ -23,18 +23,13 @@ setup_project() {
 
   # Simulate the framework submodule at .ai-lindale/
   FRAMEWORK="$PROJECT/.ai-lindale"
-  mkdir -p "$FRAMEWORK/.claude/agents" "$FRAMEWORK/.claude/commands" "$FRAMEWORK/scripts/hooks" "$FRAMEWORK/templates"
+  mkdir -p "$FRAMEWORK/.claude/agents" "$FRAMEWORK/.claude/commands" "$FRAMEWORK/scripts" "$FRAMEWORK/templates"
   for agent in architect tpm dev; do
     cp "$REPO_ROOT/.claude/agents/${agent}.md" "$FRAMEWORK/.claude/agents/${agent}.md"
   done
   for cmd in architect tpm dev; do
     cp "$REPO_ROOT/.claude/commands/${cmd}.md" "$FRAMEWORK/.claude/commands/${cmd}.md"
   done
-
-  # Create placeholder hook scripts
-  echo '#!/bin/bash' > "$FRAMEWORK/scripts/hooks/bash-allowlist.sh"
-  echo '#!/bin/bash' > "$FRAMEWORK/scripts/hooks/enforce-write-paths.sh"
-  chmod +x "$FRAMEWORK/scripts/hooks/"*.sh
 
   # Copy templates
   cp "$REPO_ROOT/templates/team-config.yml" "$FRAMEWORK/templates/team-config.yml"
@@ -135,14 +130,6 @@ test_command_symlinks() {
   done
 }
 
-test_hook_symlinks() {
-  setup_project
-  bash "$FRAMEWORK/scripts/install.sh"
-  for hook in bash-allowlist.sh enforce-write-paths.sh; do
-    assert_symlink "scripts/hooks/${hook}" "../../.ai-lindale/scripts/hooks/${hook}"
-  done
-}
-
 test_preserves_project_files() {
   setup_project
   mkdir -p .claude/agents
@@ -232,7 +219,7 @@ test_does_not_overwrite_existing_claude_md() {
 
 # Helper: set up a self-host scenario.
 # Requires setup_project + an initial install.sh run to have already happened (so symlinks exist),
-# then replaces symlinked agent/command/hook files with regular files to simulate the framework repo.
+# then replaces symlinked agent/command files with regular files to simulate the framework repo.
 setup_self_host() {
   setup_project
   bash "$FRAMEWORK/scripts/install.sh"
@@ -245,10 +232,6 @@ setup_self_host() {
     rm -f ".claude/commands/${cmd}.md"
     echo "# Self-host command: ${cmd}" > ".claude/commands/${cmd}.md"
   done
-  if [ -L "scripts/hooks/bash-allowlist.sh" ]; then
-    rm -f "scripts/hooks/bash-allowlist.sh"
-    echo '#!/bin/bash' > "scripts/hooks/bash-allowlist.sh"
-  fi
 }
 
 test_self_host_skips_symlinks() {
@@ -259,7 +242,6 @@ test_self_host_skips_symlinks() {
   assert_file_not_symlink ".claude/agents/tpm.md"
   assert_file_not_symlink ".claude/agents/dev.md"
   assert_file_not_symlink ".claude/commands/architect.md"
-  assert_file_not_symlink "scripts/hooks/bash-allowlist.sh"
 }
 
 test_self_host_still_scaffolds() {
@@ -383,14 +365,12 @@ test_force_overrides_regular_file() {
   assert_symlink ".claude/agents/architect.md" "../../.ai-lindale/.claude/agents/architect.md"
 }
 
-test_override_applies_to_commands_and_hooks() {
+test_override_applies_to_commands() {
   setup_project
   setup_with_override ".claude/commands/dev.md" "# local command override"
-  setup_with_override "scripts/hooks/bash-allowlist.sh" "#!/bin/bash\n# local hook override"
   bash "$FRAMEWORK/scripts/install.sh"
   assert_file_not_symlink ".claude/commands/dev.md" &&
-  assert_file_contains ".claude/commands/dev.md" "# local command override" &&
-  assert_file_not_symlink "scripts/hooks/bash-allowlist.sh"
+  assert_file_contains ".claude/commands/dev.md" "# local command override"
 }
 
 test_summary_line() {
@@ -430,7 +410,6 @@ echo ""
 echo "--- install.sh tests ---"
 run_test "creates agent symlinks" test_agent_symlinks
 run_test "creates command symlinks" test_command_symlinks
-run_test "creates hook symlinks" test_hook_symlinks
 run_test "preserves project-owned files" test_preserves_project_files
 run_test "creates team-config.yml template" test_creates_team_config_template
 run_test "does not overwrite existing config" test_does_not_overwrite_existing_config
@@ -459,7 +438,7 @@ run_test "override: skip prints path and 'skipped'" test_override_skip_message
 run_test "override: correct symlink is no-op on re-run" test_correct_symlink_is_noop
 run_test "override: wrong symlink is refreshed" test_wrong_symlink_refreshed
 run_test "override: --force replaces regular file override" test_force_overrides_regular_file
-run_test "override: skip applies to commands and hooks" test_override_applies_to_commands_and_hooks
+run_test "override: skip applies to commands" test_override_applies_to_commands
 run_test "override: summary line reports linked/ok/skipped" test_summary_line
 run_test "guide: documents local override behavior" test_guide_documents_local_override
 echo ""

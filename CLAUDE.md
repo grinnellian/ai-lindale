@@ -48,12 +48,6 @@ ai-lindale/
 │   ├── MEMORY_INDEX.md    # Index of all topic files
 │   └── *.md               # Topic-scoped memory files
 ├── scripts/
-│   ├── hooks/             # PreToolUse enforcement scripts
-│   │   ├── bash-allowlist.sh
-│   │   ├── block-sensitive-files.sh
-│   │   ├── enforce-write-paths.sh
-│   │   └── tests/
-│   │       └── test-hooks.sh
 │   ├── install.sh         # Downstream install via git submodule
 │   ├── sync.sh            # Downstream sync/update helper
 │   └── tests/
@@ -64,12 +58,13 @@ ai-lindale/
     └── team-config.yml    # Role overrides and project customization
 ```
 
-## Enforcement Layers
+## Security Boundary
 
-1. **disallowedTools** — prompt-enforced tool restrictions (soft)
-2. **PreToolUse hooks** — shell scripts that block unauthorized operations (hard, exit code 2)
-3. **Sandbox mode** — session-level filesystem/network boundaries
-4. **Worktree isolation** — Dev agent works in separate git worktree
+**The container is the boundary** (EPIC-004). Agents run with full permissions inside an isolated container; moat injects credentials at the network layer, so tokens never enter the agent's environment. Role constraints in agent prompts are behavioral guidance, not enforcement.
+
+Optional layers on top:
+- **Sandbox mode** — session-level filesystem/network boundaries when running on bare metal
+- **Worktree isolation** — Dev agent works in a separate git worktree (workspace hygiene, not security)
 
 ## Memory
 
@@ -96,12 +91,11 @@ The guard rails: `maxTurns` (DX-029) provides a hard ceiling, but agents should 
 
 This repo develops the framework itself. To test changes:
 1. Modify agent definitions in `.claude/agents/`
-2. Launch with `claude --agent tpm` (or `./lindale` when available) for full hook enforcement
+2. Launch with `claude --agent tpm` (or `./lindale` when available)
 3. Use `/autodev` in a TPM tab to run the full ticket lifecycle end-to-end
-4. Validate hook scripts work correctly with the agent's tool usage
-5. Downstream testing: apply changes to aistrologer and verify
+4. Downstream testing: apply changes to a downstream install (e.g. catalyst-build) and verify
 
-**Note:** Slash commands (`/tpm`, `/dev`, `/architect`) load the agent's system prompt but do NOT activate frontmatter hooks. Use `--agent` for enforced operation. See BUG-003 (#54).
+**Note:** Slash commands (`/tpm`, `/dev`, `/architect`) load the agent's system prompt into the current session; `--agent` launches a dedicated session as that agent. Both are prompt-level role adoption — enforcement comes from the container boundary, not the invocation path.
 
 ## Current Status
 
