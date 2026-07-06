@@ -117,3 +117,24 @@ L2 interaction decision is Claude Code Remote Control as primary UI; baking
 VS Code (as the Phase 0 bootstrap container did) would multiply image size
 for a UI path we don't use. Image is 0.22GB vs multi-GB bootstrap. VS Code
 can be sudo-installed interactively if a session needs it.
+
+## TPM's Agent tool is unrestricted, not an allowlist (DX-036, 2026-07-06)
+
+**Decision:** `.claude/agents/tpm.md` declares `Agent` (bare, unrestricted) instead of
+`Agent(architect, dev)` (a closed allowlist of the two framework-default subagent
+types).
+
+**Rationale:** The parenthesized form silently blocked TPM from dispatching any
+project-owned agent — including SMEs the TPM itself generates via
+`templates/sme-bootstrap.md`. `juno_automation_alpha` hit this live and forked
+`tpm.md` entirely to hand-enumerate its 7-persona roster, losing framework updates
+to that file. Verified that `dev.md` and `architect.md` already use the bare
+`Agent` form for the same tool — the allowlist on `tpm.md` was an inconsistency,
+not an intentional restriction. Per the container-as-boundary model (EPIC-004),
+frontmatter tool lists are behavioral capability declarations, not enforcement, so
+widening TPM's declared `Agent` access doesn't weaken the actual security boundary.
+
+**Downstream implication:** projects that previously claimed a local override of
+`tpm.md` solely to expand the `Agent()` allowlist (e.g. `juno_automation_alpha`)
+can drop that override and resync to the framework symlink — see
+`docs/adoption-guide.md` and `templates/sme-bootstrap.md` Step 8.
