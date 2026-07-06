@@ -159,7 +159,22 @@ refinements adopted mid-wave".
 under `.claude/worktrees/` containing dangling relative-symlink hooks; dev
 servers with glob-tracking watchers (e.g. Turbopack) crash on them. Prune
 orphaned worktrees (`git worktree prune` + delete the directory) as part of
-dispatch cleanup. See also DX-034 (#80) on moving worktrees out of `.claude/`.
+dispatch cleanup.
+
+**DX-034 (#80) findings: worktree location under `.claude/` is a Claude Code
+harness default, not a Lindalë-configured path.** `dev.md`'s frontmatter only
+sets `isolation: worktree` — it never specifies a directory — and no committed
+`.claude/settings.json` or CLI flag exposes a worktree-base-path knob (`claude
+--help` shows `-w/--worktree` with no path option). Confirmed empirically: a
+dev subagent's own working directory lands at `.claude/worktrees/agent-<id>/`
+with no Lindalë config driving that choice. The permission-prompt noise on
+every worktree op is therefore harness behavior Lindalë cannot relocate from
+agent definitions, `CLAUDE.md`, or `settings.json` today. What *is*
+Lindalë-controlled: documenting the constraint (here and in `dev.md`) and
+routine pruning of orphaned worktrees so the directory doesn't accumulate
+stale state. If Claude Code ever exposes a worktree-base-path setting, revisit
+this note and wire it up; until then, treat DX-034 as blocked on upstream
+rather than fixable in this repo.
 
 **Stash hygiene across detached-HEAD switches.** A stash created before
 switching branches/worktrees in detached-HEAD state is easy to strand. Pop or

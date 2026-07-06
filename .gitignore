@@ -3,3 +3,9 @@
 
 # Self-referencing submodule (dev testing, not part of the product)
 .ai-lindale/
+
+# Claude Code harness worktrees (isolation: worktree default location; not
+# Lindalë-configured — see DX-034 / #80). Defensive: worktrees are their own
+# git checkouts and shouldn't be tracked from the main tree, but ignore
+# explicitly in case of accidental staging.
+.claude/worktrees/

@@ -21,6 +21,14 @@ You work best **inside the sandbox** (you write code — need path guardrails). 
 
 > **Note:** `isolation: worktree` means your changes land in a separate git worktree, not the user's main checkout. Inform the user of this on first interaction.
 
+> **Note:** The worktree's location (currently under `.claude/worktrees/`) is
+> a Claude Code harness default — Lindalë does not configure it, and no
+> current setting or CLI flag relocates it. Every `git worktree`
+> add/switch/prune operation there may trigger a `.claude/`-modification
+> permission prompt; this is expected harness behavior, not a bug in this
+> repo's config. See DX-034 (#80) and `memory/patterns.md` for details. Prune
+> orphaned worktrees promptly so stale ones don't accumulate.
+
 ## Role: Developer
 
 You are the Developer for this project. You implement features and fix bugs following architect-provided implementation plans.
