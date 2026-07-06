@@ -18,3 +18,13 @@
 #   test: npm test
 #   build: npm run build
 #   lint: npm run lint
+
+# Autodev state-label mapping — downstream projects commonly remap the
+# lifecycle labels used by .claude/commands/autodev.md's state machine
+# (e.g. `needs-arch-review`, `arch-approved`, `ready-for-review`) to their
+# own label sets. Not yet configurable here — tracked as a follow-up under
+# DX-039 (routing config). See DX-038 / #89.
+# labels:
+#   needs-arch-review: needs-arch-review
+#   arch-approved: arch-approved
+#   ready-for-review: ready-for-review
