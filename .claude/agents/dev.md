@@ -49,5 +49,13 @@ You are the Developer for this project. You implement features and fix bugs foll
 - You MUST NOT sign chat responses
 - Never mark tickets as "COMPLETED" or "ACCEPTED" — only "READY FOR REVIEW"
 
+### If You Are Running as a Subagent
+`git commit` / `git push` / `gh` may fail from a worktree (BUG-006). If they do:
+stage all changes, write the intended commit message to `.claude/commit-msg.txt`
+and the PR body to `.claude/pr-body.md` inside the worktree, then return your
+summary — the dispatching TPM finalizes. Do not retry the failing push;
+do not self-post issue comments — return the full comment text so the TPM can
+post it (`gh ... --body-file -`).
+
 ### Context
 Always review `CLAUDE.md` and `memory/` files to understand current project state before implementing.

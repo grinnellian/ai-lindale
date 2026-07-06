@@ -42,5 +42,11 @@ If the user attempts to defer something that can be done now, push back. The use
 - You MUST sign all issue comments with `-Claude Architect` as the exact final line of the comment, on its own line
 - You MUST NOT sign chat responses
 
+### If You Are Running as a Subagent
+`gh` may be unavailable or unauthorized in your context. If posting a comment
+fails, return the full comment text (plan, questions, review) in your final
+message — the dispatching TPM posts it verbatim (`gh ... --body-file -`) with
+your signature intact. Do not retry the failing post.
+
 ### Context
 Always review `CLAUDE.md` and `memory/` files to understand current project state before planning.

@@ -154,3 +154,55 @@ Options:
 
 **Origin:** catalyst-build `memory/autodev-state-2026-05-20.md` §"Process
 refinements adopted mid-wave".
+
+**Orphaned worktrees crash file-watchers.** Aborted agent runs leave worktrees
+under `.claude/worktrees/` containing dangling relative-symlink hooks; dev
+servers with glob-tracking watchers (e.g. Turbopack) crash on them. Prune
+orphaned worktrees (`git worktree prune` + delete the directory) as part of
+dispatch cleanup. See also DX-034 (#80) on moving worktrees out of `.claude/`.
+
+**Stash hygiene across detached-HEAD switches.** A stash created before
+switching branches/worktrees in detached-HEAD state is easy to strand. Pop or
+apply the stash before the next switch; never leave a dispatch with a dirty
+stash.
+
+## Git/GitHub operational lore (harvested from catalyst-build)
+
+**`mergeable` flips to UNKNOWN after each merge.** GitHub recomputes PR
+mergeability for ~5–15s after any merge to the base branch. When merging a
+queue, poll `gh pr view --json mergeable` until it settles before merging the
+next one — don't treat UNKNOWN as a conflict.
+
+**`git mv` does not stage later edits.** After `git mv old new`, a subsequent
+Write/Edit to `new` is an *unstaged* modification. `git add` explicitly before
+committing or the commit ships the pre-edit content.
+
+**Fetching GitHub issue attachments needs auth.** Plain `curl` on
+`github.com/user-attachments/assets/<uuid>` returns a 9-byte "Not Found".
+Working incantation:
+`curl -sL -H "Authorization: Bearer $(gh auth token)" -o <file> <url>`,
+then sanity-check the size with `file`/`wc -c`. Subagents without gh auth
+should ask the dispatching TPM to pre-download.
+
+## Downstream conventions worth knowing (harvested from juno)
+
+**Committed `settings.json` vs personal `settings.local.json`.** A downstream
+can commit team-wide harness config (e.g. `{"worktree": {"bgIsolation":
+"none"}}`) in `.claude/settings.json` while keeping personal permission
+allowlists in the gitignored `settings.local.json`. Upstream should document
+this split (adoption guide) rather than treating all settings as personal.
+
+**Tombstone-override technique.** To retire a framework-provided agent in a
+downstream without fighting install.sh: replace the symlink with a real file
+containing `tools: [Read]`, a DEPRECATED description, and a pointer to the
+replacement. install.sh's local-override detection (BUG-007) then leaves it
+alone. Signals a framework gap when it happens — see DX-039 (#90).
+
+**Commit-trailer opt-out.** Some downstreams require agents to omit session
+trailers (`Claude-Session:` URLs) and keep only `Co-Authored-By`. Respect a
+project's CLAUDE.md on this; it is a legitimate per-project policy.
+
+**`isolation: worktree` is not universally viable.** juno's authored dirs are
+live game-save junctions that cannot exist in a worktree copy; it removed
+`isolation: worktree` from dev.md with an in-file rationale. Treat worktree
+isolation as a per-project default, not an invariant.

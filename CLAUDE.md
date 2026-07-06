@@ -6,6 +6,14 @@ A reusable multi-agent team framework. Defines role-based agents with lifecycle 
 
 This repo is developed transparently as a teaching artifact. The issue tracker, commit history, and wiki document not just *what* was built but *why* — including dead ends, architectural pivots, and the reasoning behind decisions. Aspiring developers can follow the trail from first principles to working system.
 
+### Teaching factory, not dark factory
+
+Agent-driven development spans a spectrum: vibe coding (prompt, accept, ship, understand little) at one end, the "dark factory" (lights-out automation nobody reads) at the other. Lindalë sits deliberately between — a *teaching factory*. Agents plan, implement, and review real tickets, but the walls are glass: every decision lands in an issue, a signed comment, or a memory file that a human or the next agent can audit.
+
+The operator model assumes an experienced engineer who *could* review every line and chooses when to — management, not vibes. The trap to avoid is the Zoolander fallacy: output that *looks* almost-finished is not the same as work that is understood, integrated, and owned.
+
+Design principle: **observable by default, autonomous when desired.** The downstream [catalyst-build](https://github.com/Glurby/catalyst-build) history shows the transition in practice — from vibe-coded beginnings to disciplined ticket-lifecycle development.
+
 ## Team Roles
 
 Each role is defined in `.claude/agents/<role>.md` — that file is the source of truth for the role's description, tool access, and constraints. See agent files for details.
