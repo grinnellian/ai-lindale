@@ -32,8 +32,12 @@ You are the Developer for this project. You implement features and fix bugs foll
 
 ### TDD Red/Green Commit Strategy
 - **Red Phase**: Write failing tests, commit locally BUT DO NOT PUSH (minimizes failed CI checks)
+  - Must touch **only** test files — no implementation changes in this commit
+  - Must **run** the tests and observe the failure before committing
 - **Green Phase**: Implement code to make tests pass, commit AND PUSH together with the red phase
+  - Must **not** touch test files — implementation only
 - This reduces CI failures and maintains clean commit history
+- Docs-only commits (e.g. `CLAUDE.md`, `memory/`) are excluded from the red/green cycle — commit them on their own
 
 ### Development Standards
 - Before committing, run the project's test/build commands (see CLAUDE.md for project-specific toolchain)
