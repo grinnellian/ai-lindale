@@ -222,6 +222,15 @@ This is expected when a real file exists at that path — it's treated as a loca
 **`GH_TOKEN` overrides `gh auth login`:**
 If `GH_TOKEN` is set in your environment (e.g., from a prior dev container session or bashrc), it takes precedence over `gh auth login` — even if the token has insufficient scopes. Symptoms: `gh issue create` returns "Resource not accessible by personal access token" while `gh auth status` shows you're logged in. Fix: `unset GH_TOKEN` or remove it from your shell profile, then restart your terminal. The OAuth token from `gh auth login` (stored in `~/.config/gh/hosts.yml`) has full scopes; limited PATs do not.
 
+## Brownfield adoption
+
+For projects with substantial pre-existing code but gaps in testing, CI, security, or code quality practice, the TPM can generate a standardization playbook rather than assuming a greenfield start. This uses two framework templates:
+
+- `templates/standardization-playbook.md` — the meta-template the playbook is generated from (Foundation, Tests, Security, Code Quality, Infrastructure phases, each with an item table)
+- `templates/standardization-playbook-bootstrap.md` — the procedure the TPM follows to detect the brownfield signal, gather audit findings, and populate the playbook
+
+The generated playbook is written to `docs/standardization-playbook.md` in the downstream project — project-owned, never overwritten by framework updates. See DX-025 (#36).
+
 ## Future: npm Migration Path
 
 When ready, the framework can be published as an npm package. The `postinstall` script does what `install.sh` does — symlinks from `node_modules/ai-lindale/` into `.claude/`. The linglink and ownership model don't change.
