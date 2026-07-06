@@ -120,7 +120,7 @@ if [ "$FORCE" = false ] && is_self_host; then
 fi
 
 # Create target directories
-mkdir -p .claude/agents .claude/commands
+mkdir -p .claude/agents .claude/commands .claude/skills
 
 # Symlink core agents and commands — skipped in self-host mode
 if [ "$SELF_HOST" = false ]; then
@@ -142,6 +142,21 @@ if [ "$SELF_HOST" = false ]; then
     dest=".claude/commands/${cmd_basename}"
     link_managed "$src" "$dest"
   done
+
+  # Symlink framework-shipped skills, if any (FEAT-011). Skills are
+  # project-owned by default -- .claude/skills/ is scaffolded above so
+  # projects have somewhere to put their own, real-file skills. Only
+  # skills the framework itself ships (.ai-lindale/.claude/skills/<name>/)
+  # get symlinked here, mirroring the commands glob (BUG-008).
+  if [ -d "$FRAMEWORK_DIR/.claude/skills" ]; then
+    for skill_dir in "$FRAMEWORK_DIR"/.claude/skills/*/; do
+      [ -d "$skill_dir" ] || continue
+      skill_basename=$(basename "$skill_dir")
+      src="../../${FRAMEWORK_DIR}/.claude/skills/${skill_basename}"
+      dest=".claude/skills/${skill_basename}"
+      link_managed "$src" "$dest"
+    done
+  fi
 
   echo ""
   echo "Summary: linked: $LINKED, ok: $OK, refreshed: $REFRESHED, skipped: $SKIPPED, forced: $FORCED"
