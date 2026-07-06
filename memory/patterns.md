@@ -206,3 +206,26 @@ project's CLAUDE.md on this; it is a legitimate per-project policy.
 live game-save junctions that cannot exist in a worktree copy; it removed
 `isolation: worktree` from dev.md with an in-file rationale. Treat worktree
 isolation as a per-project default, not an invariant.
+
+## Harvest residue — surveyed but deliberately not ticketed (2026-07-06)
+
+Fan-out survey of downstream installs; big items became #88–92. These were
+judged low-priority or counter-direction — recorded so the next harvest
+doesn't re-litigate them:
+
+- **block-risky.sh deny hook** (catalyst-build, also nested in
+  sticker-ninja/catalyst-build): PreToolUse deny-list for rm -rf /
+  force-push / hard-reset. NOT lifted — runs counter to the
+  container-as-boundary pivot (EPIC-004). Revisit only if a downstream
+  demands bare-metal guardrails.
+- **SME archetypes** (juno): "write-scoped documentarian" and "read-only
+  adversarial checker" agent shapes could enrich templates/sme-bootstrap.md.
+- **cortex-recall skill** (cortex-tools + account-migration, byte-identical):
+  reusable "search archived claude.ai history" skill; harvest only if the
+  cortex DB/MCP becomes part of the stack.
+- **In-repo memory protocol phrasing** (cortex-tools CLAUDE.md): one-fact-
+  per-file + MEMORY.md index convention — candidate wording for
+  templates/CLAUDE.md.
+- **juno team-config.yml**: real-world exemplar of a no-CI project (prose
+  toolchain, Knowledge/ instead of memory/) — reference for adoption-guide
+  examples.
