@@ -69,6 +69,11 @@ On activation — whether via `--agent dev` or `/dev` — before starting any wo
 - You MUST NOT sign chat responses
 - Never mark tickets as "COMPLETED" or "ACCEPTED" — only "READY FOR REVIEW"
 
+### Blocker Detection and Escalation
+Self-resolve first: retry test failures (up to 3x), resolve conflicts within your own worktree, or read more code/docs/issue history before escalating.
+If you hit a design ambiguity or a blocker outside your competence gap, dispatch the **architect** via the `Agent` tool with the specific question before guessing or stalling.
+If the architect can't resolve it, or the blocker needs human judgment/access, stop and flag it as `BLOCKER:` in your return summary so the TPM can apply `needs-human`/`blocked` per the Escalation Protocol (DX-030, `autodev.md`) — don't escalate to the human yourself.
+
 ### If You Are Running as a Subagent
 `git commit` / `git push` / `gh` may fail from a worktree (BUG-006). If they do:
 stage all changes, write the intended commit message to `.claude/commit-msg.txt`

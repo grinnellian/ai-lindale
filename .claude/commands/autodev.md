@@ -108,7 +108,7 @@ the escalation comment on every run.
 - Respect ticket dependencies — don't start a ticket until its prerequisites are in `in-progress` or later
 - On human escalation: follow the Escalation Protocol (apply `needs-human`, post the structured comment, record it in the Memory tracker), then move to next ticket
 - On blocker: apply `blocked` label, comment context on the issue, move to next ticket
-- When all actionable tickets are dispatched, produce a summary table of statuses
+- When all actionable tickets are dispatched, produce a run summary that leads with blocked/escalated items (any ticket carrying `needs-human` or `blocked`, with its blocker reason) before the general status table — mirrors the resume-first flow in the Escalation Protocol so blockers aren't buried under routine status
 - `--auto-merge` skips the human gate, not the review cycle — every PR gets agent review before merge
 - Review scope = the three-dot merge-base diff (`git diff main...HEAD` / `gh pr diff`), not the cached commit list — this catches drift when `main` moved since the branch was cut
 - The reviewer's bar is "satisfied," never "no blockers found": dev must address every review comment, including nits, before a PR is passed for merge

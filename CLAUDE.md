@@ -85,6 +85,13 @@ Optional layers on top:
 - **Sandbox mode** — session-level filesystem/network boundaries when running on bare metal
 - **Worktree isolation** — Dev agent works in a separate git worktree (workspace hygiene, not security)
 
+## Escalation Protocol
+
+Agents self-resolve first, then escalate to a peer (dev → architect, architect → TPM, any → SME) before
+involving a human — see each role's "Blocker Detection and Escalation" section in `.claude/agents/`. The
+human tier (`needs-human`/`blocked` labels, structured comment, resume protocol) is fully specified in
+`.claude/commands/autodev.md` under "Escalation Protocol (DX-030)".
+
 ## Memory
 
 Agent memory lives in `memory/` within the repo — never in `~/.claude/` or outside the working directory.

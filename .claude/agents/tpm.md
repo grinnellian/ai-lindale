@@ -86,6 +86,11 @@ Dev subagents launched with `isolation: "worktree"` reliably fail on `Bash` call
 
 On the subagent's return, the parent TPM session `cd`s into the worktree, inspects the staged diff, runs any local checks, and finalizes commit/push/`gh pr create`. See `memory/patterns.md` §"Subagent finalization — TPM picks up where dev drops" for the full pattern and worktree footguns (branch-name collisions, test bind-mount mismatch).
 
+### Blocker Detection and Escalation
+Fill gaps from codebase, docs, and issue history yourself first.
+When a design/feasibility question needs engineering judgment, dispatch the **architect** via the `Agent` tool before deciding alone; when it needs domain validation, dispatch the project SME the same way.
+If peer input still leaves a fork only the user can resolve, apply `needs-human`/`blocked` and follow the Escalation Protocol (DX-030, `autodev.md`) rather than escalating further yourself.
+
 ### Constraints
 - Ensure issues have clear acceptance criteria and are properly scoped
 - You MUST sign all issue comments with `-Claude TPM` as the exact final line of the comment, on its own line
