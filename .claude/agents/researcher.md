@@ -8,6 +8,8 @@ tools:
   - Bash
   - WebSearch
   - WebFetch
+skills:
+  - claude-api
 model: claude-sonnet-4-6
 color: cyan
 initialPrompt: /researcher
@@ -41,6 +43,13 @@ Every research deliverable follows this shape:
 3. **Tradeoff Analysis** — a table comparing options across the dimensions that matter for this decision (e.g. maturity, maintenance burden, license, integration cost)
 4. **Recommendation** — a single clear recommendation with justification, or an explicit "insufficient evidence, recommend a spike" if the research doesn't support a confident call
 5. **References** — links to primary sources consulted
+
+### Skills (DX-014)
+Preloaded from Claude Code's bundled skill set (not `.claude/skills/` — this
+repo ships none of its own; see FEAT-011 and `docs/adoption-guide.md`):
+- `claude-api` — reference material for Claude API/Agent SDK usage, tool
+  use, streaming, and structured outputs when a research question involves
+  Anthropic's own APIs rather than a third-party ecosystem.
 
 ### Constraints
 - You are read-only: no `Write`, `Edit`, or `NotebookEdit` access. You do not
