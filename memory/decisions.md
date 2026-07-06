@@ -166,3 +166,28 @@ Comments stay the discussion record; the description states current truth.
 section, under Exclusive Authority: Issue Management) and `.claude/commands/autodev.md`
 (Rules section — fold decisions into the description before advancing a ticket
 past a checkpoint).
+
+## Hard floor verified: moat + dev-in on xo-brain (EPIC-004 M1, 2026-07-06)
+
+First end-to-end run of the dev-in image under moat (`moat run` with claude +
+github grants, docker runtime). Verified: **real credentials never enter the
+container** — the env carries placeholder values (`ghp_moatProxyInjectedPlaceholder…`,
+`moat-proxy-injected`) that moat's TLS proxy swaps for real tokens at the
+network layer; `gh api user` succeeds from inside with no real token present.
+
+**Integration contract discovered:** moat's `base_image` must be a ROOT-user
+image — moat apt-installs its baseline layer (ca-certificates, gosu, xvfb…)
+with no `USER root` escape, and dev-in ends with `USER dev`. Interim: a local
+root shim (`FROM dev-in` + `USER root`, tagged `ai-lindale-dev-in:moat-base`)
+documented in moat.yaml. Long-term options: dev-in ships a `:root` build stage,
+or upstream moat learns to elevate for its build layer.
+
+**Follow-ups (not yet done):**
+- `git` over the moat proxy fails with CONNECT 407 (proxy auth) while `gh`
+  works — blocks the L5 clone-inside-container story; needs a git credential
+  helper or proxy config in the moat github grant path.
+- Network policy is permissive by default; the L3 strict allowlist
+  (`network.policy: strict` + rules) still needs to be configured and tested.
+- `moat.yaml` uses `dependencies: []` but moat still installs its own baseline
+  apt layer + gh 2.40.0 (older than dev-in's) — harmless duplication, worth an
+  upstream issue.
