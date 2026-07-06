@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# DX-012: Tests for parallel-worktree file-overlap detection.
+# Run from repo root: bash scripts/tests/test-file-overlap.sh
+
+set -uo pipefail
+
+PASS=0
+FAIL=0
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CHECKER="$REPO_ROOT/scripts/check-file-overlap.sh"
+
+run_test() {
+  local name="$1"
+  shift
+  if "$@" 2>&1; then
+    echo "  PASS: $name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $name"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+test_no_overlap() {
+  local out rc
+  out=$(bash "$CHECKER" "src/a.ts,src/b.ts" "src/c.ts,src/d.ts")
+  rc=$?
+  [ "$rc" -eq 0 ]
+}
+
+test_exact_overlap() {
+  local rc
+  bash "$CHECKER" "src/a.ts,src/b.ts" "src/b.ts,src/e.ts" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 1 ]
+}
+
+test_directory_containment() {
+  local rc
+  bash "$CHECKER" "src/feature/,src/other.ts" "src/feature/handler.ts" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 1 ]
+}
+
+test_empty_lists() {
+  local rc
+  bash "$CHECKER" "" "" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 0 ]
+}
+
+test_one_empty_list() {
+  local rc
+  bash "$CHECKER" "src/a.ts" "" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 0 ]
+}
+
+test_shared_config_warns_not_blocks() {
+  local out rc
+  out=$(bash "$CHECKER" "CLAUDE.md,src/a.ts" "CLAUDE.md,src/b.ts")
+  rc=$?
+  if [ "$rc" -ne 0 ]; then
+    echo "    Expected exit 0 (warning only), got $rc"
+    return 1
+  fi
+  if ! echo "$out" | grep -qi "warning"; then
+    echo "    Expected a WARNING for shared config file, got:"
+    echo "$out"
+    return 1
+  fi
+}
+
+test_shared_team_config_warns() {
+  local out
+  out=$(bash "$CHECKER" "templates/team-config.yml" "templates/team-config.yml")
+  echo "$out" | grep -qi "warning"
+}
+
+echo "=== DX-012 File Overlap Tests ==="
+echo ""
+run_test "no overlap between disjoint lists -> exit 0" test_no_overlap
+run_test "exact file overlap -> exit 1" test_exact_overlap
+run_test "directory containment -> exit 1" test_directory_containment
+run_test "empty lists -> exit 0" test_empty_lists
+run_test "one empty list -> exit 0" test_one_empty_list
+run_test "shared config file -> warning, exit 0" test_shared_config_warns_not_blocks
+run_test "team-config.yml overlap -> warning" test_shared_team_config_warns
+
+echo ""
+echo "=== Results: $PASS passed, $FAIL failed ==="
+[ "$FAIL" -eq 0 ] || exit 1

@@ -33,6 +33,17 @@ Each role is defined in `.claude/agents/<role>.md` — that file is the source o
 - Agents sign issue comments with their role (e.g., "-Claude TPM")
 - Agents do NOT sign chat responses
 
+### Branch Naming (DX-012)
+
+Issue branches follow `<type>/<PREFIX>-<NNN>-<short-description>` (e.g.
+`dx/DX-012-branch-naming`, `feat/FEAT-042-chart-rendering`,
+`fix/BUG-017-null-transit`). EPIC issues are not branchable — decompose
+into sub-issues first. See `.claude/agents/dev.md` for the full
+convention, `scripts/validate-branch-name.sh` for validation, and
+`scripts/check-file-overlap.sh` plus the Merge Ordering Strategy in
+`dev.md` for coordinating parallel worktree dispatches. These are
+advisory scripts, not PreToolUse hooks — see Security Boundary above.
+
 ## File Structure
 
 ```

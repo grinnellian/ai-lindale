@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# DX-012: Pre-dispatch file-overlap detection for parallel worktree safety.
+#
+# Given two comma-separated lists of files/directories that two agent
+# dispatches intend to touch, checks for overlap so a TPM does not fan out
+# two Dev agents onto conflicting paths.
+#
+# This is an advisory script agents/TPM can invoke directly -- it is NOT a
+# PreToolUse hook. Hook-based enforcement was retired under EPIC-004
+# (container-as-boundary); see CLAUDE.md's Security Boundary section.
+#
+# Usage: check-file-overlap.sh <comma-separated-list-a> <comma-separated-list-b>
+# Exit 0: no overlap (or only shared-config warnings)
+# Exit 1: overlapping paths (exact match or directory containment)
+
+set -uo pipefail
+
+LIST_A="${1:-}"
+LIST_B="${2:-}"
+
+# Files commonly touched by multiple in-flight tickets (docs/config) --
+# report as a warning, not a hard block.
+SHARED_CONFIG_FILES=(
+  "CLAUDE.md"
+  "templates/team-config.yml"
+  "package.json"
+)
+
+normalize() {
+  # Strip trailing slash for consistent comparison, but remember directories
+  # end in "/" via a side list.
+  local p="$1"
+  p="${p%/}"
+  echo "$p"
+}
+
+is_shared_config() {
+  local path="$1"
+  local cfg
+  for cfg in "${SHARED_CONFIG_FILES[@]}"; do
+    if [ "$path" = "$cfg" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+IFS=',' read -r -a ARR_A <<< "$LIST_A"
+IFS=',' read -r -a ARR_B <<< "$LIST_B"
+
+OVERLAP_FOUND=0
+WARNING_FOUND=0
+
+for raw_a in ${ARR_A[@]+"${ARR_A[@]}"}; do
+  [ -z "$raw_a" ] && continue
+  a="$(normalize "$raw_a")"
+  for raw_b in ${ARR_B[@]+"${ARR_B[@]}"}; do
+    [ -z "$raw_b" ] && continue
+    b="$(normalize "$raw_b")"
+
+    if [ "$a" = "$b" ]; then
+      if is_shared_config "$a"; then
+        echo "WARNING: shared config file touched by both dispatches: $a"
+        WARNING_FOUND=1
+      else
+        echo "OVERLAP: exact file match: $a"
+        OVERLAP_FOUND=1
+      fi
+      continue
+    fi
+
+    # Directory containment: either path ends with "/" in its original form,
+    # or one path is a prefix directory of the other.
+    case "$raw_a" in
+      */)
+        case "$b" in
+          "$a"/*)
+            echo "OVERLAP: $b is inside directory $raw_a"
+            OVERLAP_FOUND=1
+            ;;
+        esac
+        ;;
+    esac
+    case "$raw_b" in
+      */)
+        case "$a" in
+          "$b"/*)
+            echo "OVERLAP: $a is inside directory $raw_b"
+            OVERLAP_FOUND=1
+            ;;
+        esac
+        ;;
+    esac
+  done
+done
+
+if [ "$OVERLAP_FOUND" -eq 1 ]; then
+  exit 1
+fi
+
+if [ "$WARNING_FOUND" -eq 1 ]; then
+  exit 0
+fi
+
+exit 0
