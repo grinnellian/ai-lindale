@@ -13,7 +13,7 @@ Most software teams have specialized roles: architects who plan, PMs who track, 
 
 ## Status
 
-**Pre-alpha.** Framework is extracted and lives here. Agents are defined, PreToolUse hooks are implemented, and adoption tooling works. Active development ongoing.
+**Pre-alpha.** Framework is extracted and lives here. Agents are defined and adoption tooling works. The security model is container-as-boundary (EPIC-004): agents run with full permissions inside an isolated container, with credentials injected at the network layer via [moat](https://github.com/majorcontext/moat). Active development ongoing.
 
 ## Architecture
 
@@ -36,11 +36,6 @@ ai-lindale/
 │   ├── MEMORY_INDEX.md
 │   └── decisions.md
 ├── scripts/
-│   ├── hooks/                       # PreToolUse enforcement scripts
-│   │   ├── bash-allowlist.sh
-│   │   ├── block-sensitive-files.sh
-│   │   ├── enforce-write-paths.sh
-│   │   └── tests/test-hooks.sh
 │   ├── install.sh
 │   ├── sync.sh
 │   └── tests/test-adoption.sh
@@ -59,11 +54,8 @@ Each agent works in two modes:
 - **Direct:** User opens a tab, runs `/architect` — that tab *is* the Architect
 - **Orchestrated:** User runs `/autodev` in a TPM tab — the TPM drives the full ticket lifecycle, spawning Architect and Dev as subagents via its `Agent` tool
 
-### Enforcement Layers
-1. `disallowedTools` — prompt-enforced tool restrictions (soft)
-2. PreToolUse hooks — shell scripts that block unauthorized operations (hard, exit code 2)
-3. Sandbox mode — session-level filesystem/network boundaries
-4. MCP server scoping — per-agent external service access
+### Security Boundary
+The container is the boundary. Agents run with full permissions inside an isolated container; [moat](https://github.com/majorcontext/moat) injects credentials at the network layer, so tokens never enter the agent's environment. Role constraints in agent prompts are behavioral guidance, not enforcement. Sandbox mode and worktree isolation remain available as optional layers for bare-metal use.
 
 ### Ticket Lifecycle State Machine
 ```
@@ -88,14 +80,14 @@ Any project can adopt this framework via git submodule:
 # Add the framework as a submodule
 git submodule add https://github.com/grinnellian/ai-lindale.git .ai-lindale
 
-# Install symlinks into .claude/ and scripts/hooks/
+# Install symlinks into .claude/
 bash .ai-lindale/scripts/install.sh
 
 # Customize for your project
 $EDITOR .claude/team-config.yml
 ```
 
-Core agents, commands, and hook scripts are symlinked from `.ai-lindale/` into their expected locations. Project-specific files (domain SME, `team-config.yml`, `CLAUDE.md`) are real files owned by the downstream project and never overwritten.
+Core agents and commands are symlinked from `.ai-lindale/` into their expected locations. Project-specific files (domain SME, `team-config.yml`, `CLAUDE.md`) are real files owned by the downstream project and never overwritten.
 
 Updates are a single command: `git submodule update --remote .ai-lindale`
 

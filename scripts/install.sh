@@ -120,9 +120,9 @@ if [ "$FORCE" = false ] && is_self_host; then
 fi
 
 # Create target directories
-mkdir -p .claude/agents .claude/commands scripts/hooks
+mkdir -p .claude/agents .claude/commands
 
-# Symlink core agents, commands, and hooks — skipped in self-host mode
+# Symlink core agents and commands — skipped in self-host mode
 if [ "$SELF_HOST" = false ]; then
   # Symlink core agents (only framework-managed roles)
   for agent in architect tpm dev; do
@@ -141,17 +141,6 @@ if [ "$SELF_HOST" = false ]; then
       link_managed "$src" "$dest"
     fi
   done
-
-  # Symlink hook scripts
-  if [ -d "$FRAMEWORK_DIR/scripts/hooks" ]; then
-    for hook in "$FRAMEWORK_DIR"/scripts/hooks/*.sh; do
-      [ -f "$hook" ] || continue
-      basename=$(basename "$hook")
-      src="../../${FRAMEWORK_DIR}/scripts/hooks/${basename}"
-      dest="scripts/hooks/${basename}"
-      link_managed "$src" "$dest"
-    done
-  fi
 
   echo ""
   echo "Summary: linked: $LINKED, ok: $OK, refreshed: $REFRESHED, skipped: $SKIPPED, forced: $FORCED"

@@ -7,10 +7,6 @@ tools:
   - Glob
   - Bash
   - Agent
-disallowedTools:
-  - Write
-  - Edit
-  - NotebookEdit
 model: claude-opus-4-7
 color: orange
 initialPrompt: /architect
