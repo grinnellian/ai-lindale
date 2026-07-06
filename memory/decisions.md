@@ -138,3 +138,31 @@ widening TPM's declared `Agent` access doesn't weaken the actual security bounda
 `tpm.md` solely to expand the `Agent()` allowlist (e.g. `juno_automation_alpha`)
 can drop that override and resync to the framework symlink — see
 `docs/adoption-guide.md` and `templates/sme-bootstrap.md` Step 8.
+
+## Issue description is the authoritative spec (DX-028, 2026-07-06)
+
+**Decision:** A ticket's GitHub issue *description* is the current, authoritative
+spec. The comment thread is a discussion record, not a second source of truth —
+an agent executing a ticket reads the description, not the thread.
+
+**Rationale:** When agents debate scope in comments without folding the outcome
+back into the description, a fresh LLM instance picking up the ticket has to
+reconstruct intent from chronological thread archaeology ("comment 3 says X but
+comment 5 overrides it in some cases..."). That's fragile, expensive, and
+error-prone compared to reading one current spec.
+
+**Who integrates:** TPM, as an extension of its existing exclusive issue-management
+authority. Other agents (architect, dev) don't edit descriptions themselves —
+when a comment changes scope or design, they flag it explicitly in the comment,
+and TPM folds it into the description at the next state-machine checkpoint where
+it reads that ticket's comments (arch review completion, ready-for-review,
+escalation resume).
+
+**No changelog needed:** GitHub's native edit history is the audit trail for
+description changes — no "Update N" changelog note inside the body itself.
+Comments stay the discussion record; the description states current truth.
+
+**Where wired:** `.claude/agents/tpm.md` (Issue Description as Authoritative Spec
+section, under Exclusive Authority: Issue Management) and `.claude/commands/autodev.md`
+(Rules section — fold decisions into the description before advancing a ticket
+past a checkpoint).
