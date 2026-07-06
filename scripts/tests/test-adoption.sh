@@ -558,6 +558,50 @@ test_guide_references_standardization_playbook_output() {
   assert_file_contains "$REPO_ROOT/docs/adoption-guide.md" "standardization-playbook.md"
 }
 
+# --- handoff procedure tests (FEAT-013) ---
+
+test_handoff_procedure_template_exists() {
+  assert_file_exists "$REPO_ROOT/templates/handoff-procedure.md"
+}
+
+test_handoff_command_exists() {
+  assert_file_exists "$REPO_ROOT/.claude/commands/handoff.md"
+}
+
+test_handoff_procedure_has_buckets() {
+  local tmpl="$REPO_ROOT/templates/handoff-procedure.md"
+  assert_file_contains "$tmpl" "Client" &&
+  assert_file_contains "$tmpl" "Successor" &&
+  assert_file_contains "$tmpl" "Framework" &&
+  assert_file_contains "$tmpl" "Working-copy"
+}
+
+test_handoff_procedure_has_branch_conventions() {
+  local tmpl="$REPO_ROOT/templates/handoff-procedure.md"
+  assert_file_contains "$tmpl" "client-handoff" &&
+  assert_file_contains "$tmpl" "unmerged"
+}
+
+test_handoff_procedure_has_gitignore_guidance() {
+  assert_file_contains "$REPO_ROOT/templates/handoff-procedure.md" ".gitignore"
+}
+
+test_handoff_procedure_has_signing_convention() {
+  assert_file_contains "$REPO_ROOT/templates/handoff-procedure.md" "Signing convention"
+}
+
+test_handoff_command_references_procedure() {
+  assert_file_contains "$REPO_ROOT/.claude/commands/handoff.md" "templates/handoff-procedure.md"
+}
+
+test_tpm_references_handoff_procedure() {
+  assert_file_contains "$REPO_ROOT/.claude/agents/tpm.md" "handoff-procedure.md"
+}
+
+test_guide_references_handoff_procedure() {
+  assert_file_contains "$REPO_ROOT/docs/adoption-guide.md" "handoff-procedure.md"
+}
+
 # --- Run all tests ---
 
 echo "=== DX-007 Adoption Tests ==="
@@ -621,6 +665,18 @@ run_test "skills: local override of framework skill is skipped" test_framework_s
 run_test "skills: idempotent on re-run" test_skills_idempotent
 run_test "guide: documents .claude/skills convention" test_guide_documents_skills
 run_test "templates/skill.md skeleton exists" test_skill_template_exists
+
+echo ""
+echo "--- handoff procedure tests (FEAT-013) ---"
+run_test "handoff procedure template exists" test_handoff_procedure_template_exists
+run_test "handoff command exists" test_handoff_command_exists
+run_test "handoff procedure has all four buckets" test_handoff_procedure_has_buckets
+run_test "handoff procedure has branch conventions" test_handoff_procedure_has_branch_conventions
+run_test "handoff procedure has .gitignore guidance" test_handoff_procedure_has_gitignore_guidance
+run_test "handoff procedure has signing convention" test_handoff_procedure_has_signing_convention
+run_test "handoff command references procedure" test_handoff_command_references_procedure
+run_test "tpm.md references handoff-procedure.md" test_tpm_references_handoff_procedure
+run_test "adoption guide references handoff-procedure.md" test_guide_references_handoff_procedure
 
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="
