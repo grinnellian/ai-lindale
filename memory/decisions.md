@@ -102,3 +102,18 @@
 
   That's all the state worth persisting. Everything else is tracked in issues or on the wiki. Once DX-033 lands, this   
   file can be written directly — and the TPM temp-file decision becomes historical footnote.
+## Moat CA: mount at runtime, never bake (INFRA-011, 2026-07-06)
+
+Moat generates a per-host CA for its TLS-intercepting proxy. Baking a CA into
+the published dev-in image is impossible without sharing a private key across
+hosts (anti-pattern). Decision: the image entrypoint trusts whatever is
+mounted at /run/moat/moat-ca.crt (override via MOAT_CA_CERT) and is a silent
+no-op without it — the same image serves moat-wrapped and Phase-0-style
+GH_TOKEN bootstrap runs. Smoke test verifies the mechanism with a throwaway CA.
+
+## dev-in image ships without VS Code (INFRA-011, 2026-07-06)
+
+L2 interaction decision is Claude Code Remote Control as primary UI; baking
+VS Code (as the Phase 0 bootstrap container did) would multiply image size
+for a UI path we don't use. Image is 0.22GB vs multi-GB bootstrap. VS Code
+can be sudo-installed interactively if a session needs it.
