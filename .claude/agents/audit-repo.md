@@ -9,6 +9,7 @@ tools:
 model: claude-opus-4-7
 color: gray
 initialPrompt: /audit-repo
+maxTurns: 30
 ---
 
 ## Sandbox Reminder

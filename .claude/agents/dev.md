@@ -13,6 +13,7 @@ tools:
 model: claude-sonnet-4-6
 isolation: worktree
 color: blue
+maxTurns: 200
 initialPrompt: /dev
 ---
 
