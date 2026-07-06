@@ -1,10 +1,21 @@
-# dev-in: the Lindalë base container image
+# pod: the Lindalë base container image
 
-The dev-in image is the L4 foundation of the container-as-boundary architecture
-(EPIC-004, #69). Claude Code runs inside the container with full permissions —
-no hooks, no sandbox — because the container IS the security boundary.
+A **pod** is the sealed, self-sufficient container an agent lives and works
+in — the L4 foundation of the container-as-boundary architecture (EPIC-004,
+#69). Claude Code runs inside the container with full permissions — no
+hooks, no sandbox — because the container IS the security boundary.
 Credentials are injected at the network layer by [moat](https://github.com/majorcontext/moat),
 so tokens never enter the agent's environment.
+
+"Pod" names the enclosure-plus-self-sufficiency property directly, and lines
+up with the k10s roadmap vocabulary (machines as nodes, agents as pods,
+GitHub as the control plane) — see `memory/decisions.md` for the naming
+decision (INFRA-012).
+
+This image, `ai-lindale-pod-base`, is the base image for a pod — it ships the
+tooling; a running pod is this image plus moat's credential injection and
+whatever repos/resources are mounted at runtime. See [docs/faq.md](faq.md)
+for how a pod differs from a devcontainer.
 
 ## What's in the image
 
@@ -23,13 +34,13 @@ repos live under `/home/dev/work`.
 ## Pull and run standalone
 
 ```bash
-docker pull ghcr.io/grinnellian/ai-lindale-dev-in:edge
+docker pull ghcr.io/grinnellian/ai-lindale-pod-base:edge
 
 # Interactive shell
-docker run -it ghcr.io/grinnellian/ai-lindale-dev-in:edge
+docker run -it ghcr.io/grinnellian/ai-lindale-pod-base:edge
 
 # Straight into Claude Code (log in via browser OAuth on first run)
-docker run -it ghcr.io/grinnellian/ai-lindale-dev-in:edge claude
+docker run -it ghcr.io/grinnellian/ai-lindale-pod-base:edge claude
 ```
 
 Phase-0-style bootstrap (no moat yet — token as env var, acceptable only for
@@ -37,7 +48,7 @@ local single-user use):
 
 ```bash
 docker run -it -e GH_TOKEN="$(gh auth token)" \
-  ghcr.io/grinnellian/ai-lindale-dev-in:edge
+  ghcr.io/grinnellian/ai-lindale-pod-base:edge
 ```
 
 ## Running under moat
@@ -50,7 +61,7 @@ mounted at `/run/moat/moat-ca.crt` (override the path with `MOAT_CA_CERT`):
 docker run -it \
   -v "$HOME/.moat/certs/ca.crt:/run/moat/moat-ca.crt:ro" \
   -e HTTPS_PROXY=http://host.docker.internal:8080 \
-  ghcr.io/grinnellian/ai-lindale-dev-in:edge
+  ghcr.io/grinnellian/ai-lindale-pod-base:edge
 ```
 
 (The exact mount path and proxy port depend on your moat configuration; when
@@ -62,8 +73,8 @@ with or without moat.
 ## Build locally
 
 ```bash
-bash infra/dev-in/build.sh                # → ghcr.io/grinnellian/ai-lindale-dev-in:dev
-bash infra/dev-in/smoke-test.sh           # verify the build
+bash infra/pod-base/build.sh                # → ghcr.io/grinnellian/ai-lindale-pod-base:dev
+bash infra/pod-base/smoke-test.sh           # verify the build
 ```
 
 Version overrides:
@@ -73,18 +84,23 @@ docker build \
   --build-arg NODE_VERSION=24.18.0 \
   --build-arg GH_VERSION=2.96.0 \
   --build-arg CLAUDE_CODE_CHANNEL=stable \
-  -t ai-lindale-dev-in:custom infra/dev-in
+  -t ai-lindale-pod-base:custom infra/pod-base
 ```
 
 ## Publishing and versioning
 
-CI (`.github/workflows/dev-in-image.yml`) builds on every main-branch change
-to `infra/dev-in/`, smoke-tests, and pushes multi-arch (amd64 + arm64) to
-`ghcr.io/grinnellian/ai-lindale-dev-in`:
+CI (`.github/workflows/pod-base-image.yml`) builds on every main-branch change
+to `infra/pod-base/`, smoke-tests, and pushes multi-arch (amd64 + arm64) to
+`ghcr.io/grinnellian/ai-lindale-pod-base`:
 
 - `:sha-<short>` — every build (immutable)
 - `:edge` — latest main build
-- `:<semver>` + `:latest` — on `dev-in-v*` tags
+- `:<semver>` + `:latest` — on `pod-base-v*` tags
+
+**The old GHCR package (`ai-lindale-dev-in`) is deprecated** — it was published
+under the pre-rename name (INFRA-012) and will not receive further updates.
+New publishes go to `ai-lindale-pod-base` starting with the next main-branch
+CI run after the rename lands.
 
 ## Size budget
 

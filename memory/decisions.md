@@ -45,7 +45,7 @@
   - moat provides credential injection via TLS-intercepting proxy — agents never see raw tokens                         
                                                                                                                       
   **Implication:** Hooks become optional "roleplay rules" for bare-metal sessions, not a security layer. DX-033 removes 
-  them from agent frontmatter for dev-in sessions.                                                                    
+  them from agent frontmatter for dev-in sessions (renamed to pod-base, INFRA-012).                                                                    
                                                                                                                         
   ## Moat version pin                                                                                                 
 
@@ -105,13 +105,14 @@
 ## Moat CA: mount at runtime, never bake (INFRA-011, 2026-07-06)
 
 Moat generates a per-host CA for its TLS-intercepting proxy. Baking a CA into
-the published dev-in image is impossible without sharing a private key across
-hosts (anti-pattern). Decision: the image entrypoint trusts whatever is
-mounted at /run/moat/moat-ca.crt (override via MOAT_CA_CERT) and is a silent
-no-op without it — the same image serves moat-wrapped and Phase-0-style
-GH_TOKEN bootstrap runs. Smoke test verifies the mechanism with a throwaway CA.
+the published dev-in image (renamed to pod-base, INFRA-012) is impossible
+without sharing a private key across hosts (anti-pattern). Decision: the image
+entrypoint trusts whatever is mounted at /run/moat/moat-ca.crt (override via
+MOAT_CA_CERT) and is a silent no-op without it — the same image serves
+moat-wrapped and Phase-0-style GH_TOKEN bootstrap runs. Smoke test verifies
+the mechanism with a throwaway CA.
 
-## dev-in image ships without VS Code (INFRA-011, 2026-07-06)
+## dev-in image ships without VS Code (INFRA-011, 2026-07-06; renamed to pod-base, INFRA-012)
 
 L2 interaction decision is Claude Code Remote Control as primary UI; baking
 VS Code (as the Phase 0 bootstrap container did) would multiply image size
@@ -167,7 +168,7 @@ section, under Exclusive Authority: Issue Management) and `.claude/commands/auto
 (Rules section — fold decisions into the description before advancing a ticket
 past a checkpoint).
 
-## Hard floor verified: moat + dev-in on xo-brain (EPIC-004 M1, 2026-07-06)
+## Hard floor verified: moat + dev-in on xo-brain (EPIC-004 M1, 2026-07-06; dev-in renamed to pod-base, INFRA-012)
 
 First end-to-end run of the dev-in image under moat (`moat run` with claude +
 github grants, docker runtime). Verified: **real credentials never enter the
@@ -191,3 +192,28 @@ or upstream moat learns to elevate for its build layer.
 - `moat.yaml` uses `dependencies: []` but moat still installs its own baseline
   apt layer + gh 2.40.0 (older than dev-in's) — harmless duplication, worth an
   upstream issue.
+
+## Pod naming decision (INFRA-012, 2026-07-06)
+
+**Decision:** Rename the "dev-in" concept and image to **pod** /
+`ghcr.io/grinnellian/ai-lindale-pod-base`. A pod is the sealed,
+self-sufficient container an agent lives and works in — the L4 foundation of
+container-as-boundary.
+
+**Rationale:** "pod" gives enclosure + self-sufficiency in one word, and
+aligns with the k10s roadmap vocabulary (machines as nodes, agents as pods,
+GitHub as the control plane) — see EPIC-005 (#70) — so M3 inherits a
+coherent naming story instead of reconciling two vocabularies later.
+"dev-in" also risked mindshare collision with Devin/Windsurf-style product
+names.
+
+**Rejected:** "devcon" — collides with the `devcontainer.json` ecosystem and
+invites false compatibility assumptions (see docs/faq.md for why a pod is
+explicitly not a devcontainer), and reads too close to DEF CON.
+
+**Parked, not rejected:** "cell" / "workcell" — a lean-manufacturing framing
+(a workcell is a self-contained unit of production) that trades the
+enclosure/security framing for a beehive-adjacent art direction rather than
+a prison-adjacent one. Worth revisiting as a future branding/visual-identity
+option if "pod" ever needs a friendlier public-facing gloss, but not adopted
+now — "pod" better matches the k10s vocabulary already in use.

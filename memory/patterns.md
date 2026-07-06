@@ -107,7 +107,7 @@ and hits the bugs above. This is why catalyst-build's manual `/dev` workflow
 succeeds while TPM-driven `/autodev` dispatch fails on the same agent
 definition.
 
-**Real fix:** EPIC-004 dev-in containers — sidesteps worktree dispatch
+**Real fix:** EPIC-004 pod containers (pod-base, INFRA-012) — sidesteps worktree dispatch
 entirely. Heavier parallelization cost than worktrees but unblocks dev work
 under the current Claude Code platform.
 

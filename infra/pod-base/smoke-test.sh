@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Smoke test for the dev-in image (INFRA-011).
-# Usage: bash infra/dev-in/smoke-test.sh [tag]
+# Smoke test for the pod-base image (INFRA-011).
+# Usage: bash infra/pod-base/smoke-test.sh [tag]
 set -euo pipefail
 
-TAG="${1:-ghcr.io/grinnellian/ai-lindale-dev-in:dev}"
+TAG="${1:-ghcr.io/grinnellian/ai-lindale-pod-base:dev}"
 PASS=0
 FAIL=0
 
@@ -18,7 +18,7 @@ check() {
   fi
 }
 
-echo "=== dev-in smoke test: $TAG ==="
+echo "=== pod-base smoke test: $TAG ==="
 
 # Tooling present and runnable
 check "claude --version"  docker run --rm "$TAG" claude --version

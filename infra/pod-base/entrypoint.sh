@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# dev-in entrypoint: trust the moat CA if one is mounted, then exec the command.
+# pod-base entrypoint: trust the moat CA if one is mounted, then exec the command.
 #
 # Moat generates a per-host CA for its TLS-intercepting proxy, so the cert
 # cannot be baked into a published image. Mount it read-only at

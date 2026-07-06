@@ -1,8 +1,8 @@
 # moat.yaml — Lindalë self-dev configuration (EPIC-004 L3, M1: Moat Foundation)
 #
-# Runs Claude Code inside the dev-in container with credentials injected at
+# Runs Claude Code inside the pod-base container with credentials injected at
 # the network layer by moat's TLS-intercepting proxy. Tokens never enter the
-# container environment — see docs/dev-in.md and the wiki Architecture
+# container environment — see docs/pod.md and the wiki Architecture
 # Overview for the container-as-boundary model.
 #
 # Usage:
@@ -10,31 +10,31 @@
 #   moat grant github    # once per host (reuses gh CLI auth)
 #   moat run             # from the repo root
 #
-# The base image is published by CI (.github/workflows/dev-in-image.yml).
-# To use a locally built image instead: bash infra/dev-in/build.sh and point
-# base_image at ghcr.io/grinnellian/ai-lindale-dev-in:dev.
+# The base image is published by CI (.github/workflows/pod-base-image.yml).
+# To use a locally built image instead: bash infra/pod-base/build.sh and point
+# base_image at ghcr.io/grinnellian/ai-lindale-pod-base:dev.
 
 name: lindale-dev
 agent: claude
 interactive: true
 
-# dev-in already ships git/gh/node/python/claude — moat must not apt-install
+# pod-base already ships git/gh/node/python/claude — moat must not apt-install
 # its default dependency set (the image runs as non-root `dev`, so apt would
 # fail anyway). Empty list = trust the base image.
 dependencies: []
 
-# dev-in provides Claude Code, gh, git, node, python on Ubuntu 24.04 —
+# pod-base provides Claude Code, gh, git, node, python on Ubuntu 24.04 —
 # moat layers its own user/entrypoint infrastructure on top.
 #
 # M1 finding (2026-07-06): moat's base_image contract requires a ROOT-user
 # image (it apt-installs its baseline layer with no `USER root` escape), but
-# dev-in ends with `USER dev`. Until dev-in ships a root variant or moat
+# pod-base ends with `USER dev`. Until pod-base ships a root variant or moat
 # handles non-root bases, build the shim locally:
-#   printf 'FROM ghcr.io/grinnellian/ai-lindale-dev-in:edge\nUSER root\n' \
-#     | docker build -t ai-lindale-dev-in:moat-base -
-base_image: ai-lindale-dev-in:moat-base
+#   printf 'FROM ghcr.io/grinnellian/ai-lindale-pod-base:edge\nUSER root\n' \
+#     | docker build -t ai-lindale-pod-base:moat-base -
+base_image: ai-lindale-pod-base:moat-base
 
-# Apple containers can't run docker-in-docker and the dev-in image is
+# Apple containers can't run docker-in-docker and the pod-base image is
 # validated against Docker; pin the runtime for predictability.
 runtime: docker
 
