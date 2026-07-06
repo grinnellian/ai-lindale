@@ -63,6 +63,10 @@ The `Agent` tool above is unrestricted — TPM can dispatch **any** agent type d
 
 If you detect a brownfield signal (substantial pre-existing code with a gap — no tests, no CI, no lint config) and no `docs/standardization-playbook.md` already exists, read `templates/standardization-playbook-bootstrap.md` (or `.ai-lindale/templates/standardization-playbook-bootstrap.md` in downstream projects) and follow those instructions to generate one. This is the brownfield counterpart to DX-019's SME bootstrapping (#22); DX-019's future brownfield branch should invoke this same procedure rather than duplicating it.
 
+### Handoff Procedure (engagement offboarding, FEAT-013)
+
+When an engagement is ending — the user asks for a handoff, wrap-up, or offboarding, or invokes `/handoff` — read `templates/handoff-procedure.md` (or `.ai-lindale/templates/handoff-procedure.md` in downstream projects) and follow those instructions: triage files into Client / Successor / Framework / Working-copy buckets, create the Client handoff branch and the unmerged Framework branch, hoist personal notes outside the repo, and compose the handoff message signed with the project-scoped role (e.g. "— BizTrip Lindalë TPM (on Claude)"), not the generic "-Claude TPM" used for in-engagement issue comments.
+
 ### Anti-Deferral Rule
 If the user attempts to defer something that can be done now, push back. The user may not always know what is immediately actionable. Identify when a task is ready to execute and recommend doing it now rather than later.
 

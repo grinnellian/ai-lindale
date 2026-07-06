@@ -231,6 +231,15 @@ For projects with substantial pre-existing code but gaps in testing, CI, securit
 
 The generated playbook is written to `docs/standardization-playbook.md` in the downstream project — project-owned, never overwritten by framework updates. See DX-025 (#36).
 
+## Engagement Handoff (FEAT-013)
+
+When a Lindale-managed engagement ends, use the framework's standardized handoff procedure rather than improvising a wrap-up:
+
+- `templates/handoff-procedure.md` — the procedure: triage files into Client / Successor / Framework / Working-copy buckets, create a client handoff branch off `main`, keep framework artifacts on their own unmerged branch, hoist personal notes outside the repo, and compose the signed handoff message
+- `.claude/commands/handoff.md` — the `/handoff` command that walks the TPM through the procedure interactively
+
+The procedure keeps the client's `main` free of framework internals (agent configs, memory, hooks) while preserving them on a separate branch for the next engagement, and keeps the operator's personal notes out of any shared branch entirely. Agent-composed handoff messages are signed with the project-scoped role (e.g. "— BizTrip Lindalë TPM (on Claude)"), not the generic role signature used for in-engagement issue comments — the message is a deliverable to a human outside the engagement and should be traceable to which engagement's TPM composed it. See FEAT-013 (#62).
+
 ## Future: npm Migration Path
 
 When ready, the framework can be published as an npm package. The `postinstall` script does what `install.sh` does — symlinks from `node_modules/ai-lindale/` into `.claude/`. The linglink and ownership model don't change.
