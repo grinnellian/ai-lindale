@@ -27,8 +27,8 @@ setup_project() {
   for agent in architect tpm dev; do
     cp "$REPO_ROOT/.claude/agents/${agent}.md" "$FRAMEWORK/.claude/agents/${agent}.md"
   done
-  for cmd in architect tpm dev; do
-    cp "$REPO_ROOT/.claude/commands/${cmd}.md" "$FRAMEWORK/.claude/commands/${cmd}.md"
+  for cmd_file in "$REPO_ROOT"/.claude/commands/*.md; do
+    cp "$cmd_file" "$FRAMEWORK/.claude/commands/$(basename "$cmd_file")"
   done
 
   # Copy templates
@@ -128,6 +128,21 @@ test_command_symlinks() {
   for cmd in architect tpm dev; do
     assert_symlink ".claude/commands/${cmd}.md" "../../.ai-lindale/.claude/commands/${cmd}.md"
   done
+}
+
+test_all_framework_commands_symlinked() {
+  # BUG-008: install.sh must not hardcode the command list — every *.md file
+  # present in the framework's .claude/commands/ (including autodev.md and
+  # any future additions) must get symlinked downstream.
+  setup_project
+  bash "$FRAMEWORK/scripts/install.sh"
+  local cmd_file base
+  for cmd_file in "$FRAMEWORK"/.claude/commands/*.md; do
+    base=$(basename "$cmd_file")
+    assert_symlink ".claude/commands/${base}" "../../.ai-lindale/.claude/commands/${base}" || return 1
+  done
+  # Explicitly assert autodev.md specifically, since that's the reported bug.
+  assert_symlink ".claude/commands/autodev.md" "../../.ai-lindale/.claude/commands/autodev.md"
 }
 
 test_preserves_project_files() {
@@ -410,6 +425,7 @@ echo ""
 echo "--- install.sh tests ---"
 run_test "creates agent symlinks" test_agent_symlinks
 run_test "creates command symlinks" test_command_symlinks
+run_test "symlinks all framework commands, incl. autodev" test_all_framework_commands_symlinked
 run_test "preserves project-owned files" test_preserves_project_files
 run_test "creates team-config.yml template" test_creates_team_config_template
 run_test "does not overwrite existing config" test_does_not_overwrite_existing_config
