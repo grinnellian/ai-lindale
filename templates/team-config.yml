@@ -18,3 +18,34 @@
 #   test: npm test
 #   build: npm run build
 #   lint: npm run lint
+
+# Persona routing (DX-039) — override which agent plans a ticket or joins
+# review, without forking autodev.md or tpm.md. Agent names must exist in
+# .claude/agents/ (or be dispatchable via the Agent tool). If this whole
+# `routing:` block is absent, autodev falls back to today's default:
+# every ticket is planned by `architect` and reviewed by `architect` alone.
+#
+# routing:
+#   planners:
+#     # issue-prefix -> planning agent, checked at the NEEDS_REVIEW step.
+#     # Prefixes not listed here fall back to `architect`.
+#     FEAT: architect
+#     EPIC: architect
+#     DX: architect
+#     INFRA: architect
+#     BUG: architect
+#     DOCS: architect
+#     # Example split (juno-style): route FEAT/EPIC to a product-facing
+#     # planner and BUG to whichever agent owns the affected area:
+#     # FEAT: flight-director
+#     # EPIC: flight-director
+#     # BUG: software-architect
+#   reviewers:
+#     # path-glob -> additional reviewer agent dispatched alongside the
+#     # architect during the REVIEW state, when the PR touches matching
+#     # paths. Globs are matched against `git diff --name-only` for the PR.
+#     # No default entries — an empty/absent table means architect-only
+#     # review, same as today.
+#     # "docs/**": domain-sme
+#     # "*.sql": db-reviewer
+#     # "src/i18n/**": i18n-reviewer
