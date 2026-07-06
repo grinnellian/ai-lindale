@@ -38,6 +38,25 @@ setup_project() {
   # Copy install.sh
   cp "$REPO_ROOT/scripts/install.sh" "$FRAMEWORK/scripts/install.sh"
   chmod +x "$FRAMEWORK/scripts/install.sh"
+
+  # Skills directory exists on the framework side but ships empty by
+  # default (FEAT-011: skills are project-owned unless the framework
+  # itself ships one).
+  mkdir -p "$FRAMEWORK/.claude/skills"
+}
+
+# Helper: add a fake framework-shipped skill (FEAT-011).
+# Args: $1 = skill name
+setup_framework_skill() {
+  local name="$1"
+  mkdir -p "$FRAMEWORK/.claude/skills/${name}"
+  cat > "$FRAMEWORK/.claude/skills/${name}/SKILL.md" << EOF
+---
+name: ${name}
+description: fake framework-shipped skill for testing
+---
+# ${name}
+EOF
 }
 
 teardown() {
@@ -418,6 +437,77 @@ test_guide_documents_local_override() {
   assert_file_contains "$REPO_ROOT/docs/adoption-guide.md" "local override"
 }
 
+# --- skills tests (FEAT-011) ---
+
+test_skills_dir_scaffolded() {
+  setup_project
+  bash "$FRAMEWORK/scripts/install.sh"
+  if [ ! -d ".claude/skills" ]; then
+    echo "    .claude/skills/ directory was not created"
+    return 1
+  fi
+  return 0
+}
+
+test_framework_skill_symlinked() {
+  setup_project
+  setup_framework_skill "autocommit"
+  bash "$FRAMEWORK/scripts/install.sh"
+  assert_symlink ".claude/skills/autocommit" "../../.ai-lindale/.claude/skills/autocommit"
+}
+
+test_project_skill_not_touched() {
+  setup_project
+  mkdir -p .claude/skills/my-skill
+  echo "# project-owned skill" > .claude/skills/my-skill/SKILL.md
+  bash "$FRAMEWORK/scripts/install.sh"
+  if [ -L ".claude/skills/my-skill" ]; then
+    echo "    Should NOT be a symlink: .claude/skills/my-skill"
+    return 1
+  fi
+  assert_file_contains ".claude/skills/my-skill/SKILL.md" "project-owned skill"
+}
+
+test_no_framework_skills_no_crash() {
+  setup_project
+  # No framework skills exist (default) — install.sh must not error.
+  bash "$FRAMEWORK/scripts/install.sh" > /dev/null
+  if [ ! -d ".claude/skills" ]; then
+    echo "    .claude/skills/ directory missing after run with no framework skills"
+    return 1
+  fi
+  return 0
+}
+
+test_framework_skill_override_skipped() {
+  setup_project
+  setup_framework_skill "autocommit"
+  mkdir -p .claude/skills/autocommit
+  echo "# local skill override" > .claude/skills/autocommit/SKILL.md
+  bash "$FRAMEWORK/scripts/install.sh"
+  if [ -L ".claude/skills/autocommit" ]; then
+    echo "    Should NOT be a symlink: .claude/skills/autocommit (local override present)"
+    return 1
+  fi
+  assert_file_contains ".claude/skills/autocommit/SKILL.md" "local skill override"
+}
+
+test_skills_idempotent() {
+  setup_project
+  setup_framework_skill "autocommit"
+  bash "$FRAMEWORK/scripts/install.sh"
+  bash "$FRAMEWORK/scripts/install.sh"
+  assert_symlink ".claude/skills/autocommit" "../../.ai-lindale/.claude/skills/autocommit"
+}
+
+test_guide_documents_skills() {
+  assert_file_contains "$REPO_ROOT/docs/adoption-guide.md" ".claude/skills"
+}
+
+test_skill_template_exists() {
+  assert_file_exists "$REPO_ROOT/templates/skill.md"
+}
+
 # --- Run all tests ---
 
 echo "=== DX-007 Adoption Tests ==="
@@ -457,6 +547,17 @@ run_test "override: --force replaces regular file override" test_force_overrides
 run_test "override: skip applies to commands" test_override_applies_to_commands
 run_test "override: summary line reports linked/ok/skipped" test_summary_line
 run_test "guide: documents local override behavior" test_guide_documents_local_override
+echo ""
+echo "--- skills tests (FEAT-011) ---"
+run_test "skills: .claude/skills/ scaffolded" test_skills_dir_scaffolded
+run_test "skills: framework-shipped skill is symlinked" test_framework_skill_symlinked
+run_test "skills: project-owned skill is not touched" test_project_skill_not_touched
+run_test "skills: no framework skills does not crash" test_no_framework_skills_no_crash
+run_test "skills: local override of framework skill is skipped" test_framework_skill_override_skipped
+run_test "skills: idempotent on re-run" test_skills_idempotent
+run_test "guide: documents .claude/skills convention" test_guide_documents_skills
+run_test "templates/skill.md skeleton exists" test_skill_template_exists
+
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ] || exit 1
