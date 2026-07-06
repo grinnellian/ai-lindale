@@ -76,3 +76,50 @@ and the PR body to `.claude/pr-body.md` inside the worktree, then return your
 summary — the dispatching TPM finalizes. Do not retry the failing push;
 do not self-post issue comments — return the full comment text so the TPM can
 post it (`gh ... --body-file -`).
+
+### Branch Naming Convention (DX-012)
+
+Every issue branch follows `<type>/<PREFIX>-<NNN>-<short-description>`:
+
+| Issue prefix | Branch type | Example |
+|---|---|---|
+| FEAT | `feat/` | `feat/FEAT-042-chart-rendering` |
+| BUG | `fix/` | `fix/BUG-017-null-transit` |
+| DX | `dx/` | `dx/DX-012-branch-naming` |
+| DOCS | `docs/` | `docs/DOCS-003-api-reference` |
+| INFRA | `infra/` | `infra/INFRA-008-ci-pipeline` |
+| EPIC | not branchable | decompose into sub-issues first |
+
+Rules: lowercase hyphen-separated description, max 5 words, one branch per
+issue. Before claiming a branch name (in this worktree or any parallel
+dispatch), check for collisions with `git branch --list '<type>/*'` —
+aborted agent runs leave stale branch names behind (see `memory/patterns.md`
+worktree footguns).
+
+Validate a candidate name with `scripts/validate-branch-name.sh
+<branch-name>` (exit 0 valid, exit 2 invalid with a reason on stderr). This
+is an advisory script you or a TPM can run before/after `git checkout -b` —
+it is **not** a PreToolUse hook. Hook-based enforcement was retired under
+EPIC-004 (container-as-boundary); see CLAUDE.md's Security Boundary
+section. Nothing blocks a malformed branch name at the git level — running
+the validator is a convention you follow, not a wall that stops you.
+
+### Merge Ordering Strategy (Parallel Worktrees)
+
+When multiple Dev dispatches are in flight on separate worktrees/branches:
+
+1. **Independent branches** (no file overlap) may merge in any order. Rebase
+   each onto the base branch immediately before its merge.
+2. **Dependent branches** (one builds on another) merge smallest-first, with
+   a mandatory rebase between each merge in the chain — never batch-merge a
+   dependent chain without rebasing in between.
+3. **Conflict resolution** happens in the Dev agent's own worktree: pull the
+   latest base branch, rebase, resolve, re-run tests, and request re-review.
+   Do not resolve conflicts on someone else's branch.
+4. **Never merge overlapping branches without rebasing first.** Before
+   dispatching parallel work, a TPM should run `scripts/check-file-overlap.sh
+   "<files-a>" "<files-b>"` (comma-separated paths) to catch exact-match or
+   directory-containment overlap up front (exit 1 = overlap, exit 0 = clear).
+   Shared config files (`CLAUDE.md`, `templates/team-config.yml`,
+   `package.json`) produce a warning rather than a hard block — expect a
+   trivial rebase there, not a redesign.
