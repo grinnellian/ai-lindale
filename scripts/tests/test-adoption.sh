@@ -403,6 +403,56 @@ test_guide_documents_local_override() {
   assert_file_contains "$REPO_ROOT/docs/adoption-guide.md" "local override"
 }
 
+# --- standardization playbook tests (DX-025) ---
+
+test_standardization_playbook_template_exists() {
+  assert_file_exists "$REPO_ROOT/templates/standardization-playbook.md"
+}
+
+test_standardization_playbook_bootstrap_exists() {
+  assert_file_exists "$REPO_ROOT/templates/standardization-playbook-bootstrap.md"
+}
+
+test_standardization_playbook_has_phases() {
+  local tmpl="$REPO_ROOT/templates/standardization-playbook.md"
+  assert_file_contains "$tmpl" "Foundation" &&
+  assert_file_contains "$tmpl" "Tests" &&
+  assert_file_contains "$tmpl" "Security" &&
+  assert_file_contains "$tmpl" "Code Quality" &&
+  assert_file_contains "$tmpl" "Infrastructure"
+}
+
+test_standardization_playbook_has_priorities() {
+  local tmpl="$REPO_ROOT/templates/standardization-playbook.md"
+  assert_file_contains "$tmpl" "P0" &&
+  assert_file_contains "$tmpl" "P1" &&
+  assert_file_contains "$tmpl" "P2"
+}
+
+test_standardization_playbook_has_depends_on() {
+  assert_file_contains "$REPO_ROOT/templates/standardization-playbook.md" "Depends on"
+}
+
+test_standardization_playbook_has_guiding_principles() {
+  assert_file_contains "$REPO_ROOT/templates/standardization-playbook.md" "Guiding Principles"
+}
+
+test_standardization_bootstrap_has_gh_issue_create() {
+  assert_file_contains "$REPO_ROOT/templates/standardization-playbook-bootstrap.md" "gh issue create"
+}
+
+test_standardization_bootstrap_has_brownfield() {
+  assert_file_contains "$REPO_ROOT/templates/standardization-playbook-bootstrap.md" "brownfield"
+}
+
+test_tpm_references_standardization_bootstrap() {
+  assert_file_contains "$REPO_ROOT/.claude/agents/tpm.md" "standardization-playbook-bootstrap.md"
+}
+
+test_guide_references_standardization_playbook_output() {
+  assert_file_contains "$REPO_ROOT/docs/adoption-guide.md" "standardization-playbook.md"
+}
+
 # --- Run all tests ---
 
 echo "=== DX-007 Adoption Tests ==="
@@ -441,6 +491,20 @@ run_test "override: --force replaces regular file override" test_force_overrides
 run_test "override: skip applies to commands" test_override_applies_to_commands
 run_test "override: summary line reports linked/ok/skipped" test_summary_line
 run_test "guide: documents local override behavior" test_guide_documents_local_override
+
+echo ""
+echo "--- standardization playbook tests (DX-025) ---"
+run_test "standardization playbook template exists" test_standardization_playbook_template_exists
+run_test "standardization playbook bootstrap exists" test_standardization_playbook_bootstrap_exists
+run_test "standardization playbook has all five phases" test_standardization_playbook_has_phases
+run_test "standardization playbook has priorities P0-P2" test_standardization_playbook_has_priorities
+run_test "standardization playbook has Depends on field" test_standardization_playbook_has_depends_on
+run_test "standardization playbook has Guiding Principles" test_standardization_playbook_has_guiding_principles
+run_test "standardization bootstrap references gh issue create" test_standardization_bootstrap_has_gh_issue_create
+run_test "standardization bootstrap references brownfield" test_standardization_bootstrap_has_brownfield
+run_test "tpm.md references standardization-playbook-bootstrap.md" test_tpm_references_standardization_bootstrap
+run_test "adoption guide references standardization-playbook.md output" test_guide_references_standardization_playbook_output
+
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ] || exit 1
