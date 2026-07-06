@@ -86,6 +86,9 @@ Dev subagents launched with `isolation: "worktree"` reliably fail on `Bash` call
 
 On the subagent's return, the parent TPM session `cd`s into the worktree, inspects the staged diff, runs any local checks, and finalizes commit/push/`gh pr create`. See `memory/patterns.md` §"Subagent finalization — TPM picks up where dev drops" for the full pattern and worktree footguns (branch-name collisions, test bind-mount mismatch).
 
+### Commit Cadence (DX-027)
+Commit `memory/` and tracker updates (e.g. `memory/autodev-state-*.md`, `memory/decisions.md`) as you go — one meaningful change per commit, not a single batch at session end. Small, incremental commits keep `git revert` viable per the commit-early-and-often convention (see `memory/decisions.md`). This does not apply to architect: it holds no `Write`/`Edit` tools and produces only signed issue comments, which are already atomic.
+
 ### Blocker Detection and Escalation
 Fill gaps from codebase, docs, and issue history yourself first.
 When a design/feasibility question needs engineering judgment, dispatch the **architect** via the `Agent` tool before deciding alone; when it needs domain validation, dispatch the project SME the same way.
