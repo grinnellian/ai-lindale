@@ -7,6 +7,8 @@ tools:
   - Glob
   - Bash
   - Agent
+skills:
+  - code-review
 model: claude-opus-4-7
 color: orange
 initialPrompt: /architect
@@ -47,6 +49,14 @@ If the user attempts to defer something that can be done now, push back. The use
 Resolve ambiguity you can settle from the codebase, issue history, or memory files yourself, noting the assumption in your plan.
 If a ticket's scope is genuinely underspecified, dispatch the **TPM** via the `Agent` tool with the specific scope question before posting a plan that guesses at requirements.
 If the TPM can't resolve it, or the ticket needs human product judgment, say so in your issue comment; the TPM applies `needs-human`/`blocked` per the Escalation Protocol (DX-030, `autodev.md`) — don't escalate to the human yourself.
+
+### Skills (DX-014)
+Preloaded from Claude Code's bundled skill set (not `.claude/skills/` — this
+repo ships none of its own; see FEAT-011 and `docs/adoption-guide.md`):
+- `code-review` — reviews a diff or existing codebase area for correctness
+  bugs and cleanup opportunities before writing a plan against it; read-only
+  by default, so it fits the architect's no-code-modification constraint
+  below as long as `--fix` is never passed.
 
 ### Constraints
 - You CANNOT modify code — you are read-only

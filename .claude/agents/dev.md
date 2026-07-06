@@ -10,6 +10,10 @@ tools:
   - Bash
   - Agent
   - NotebookEdit
+skills:
+  - simplify
+  - claude-api
+  - verify
 model: claude-sonnet-4-6
 isolation: worktree
 color: blue
@@ -59,6 +63,17 @@ On activation — whether via `--agent dev` or `/dev` — before starting any wo
 - Before committing, run the project's test/build commands (see CLAUDE.md for project-specific toolchain)
 - Create PRs against the project's base branch (check CLAUDE.md or repo default)
 - Changes to `CLAUDE.md` should not trigger CI tests
+
+### Skills (DX-014)
+Preloaded from Claude Code's bundled skill set (not `.claude/skills/` — this
+repo ships none of its own; see FEAT-011 and `docs/adoption-guide.md`):
+- `simplify` — cleanup-only pass (reuse, efficiency, right level of
+  abstraction) on the diff before marking a ticket ready for review.
+- `claude-api` — SDK reference for Python/TypeScript/etc. when a change
+  touches Claude API or Agent SDK code; also self-activates on relevant
+  imports.
+- `verify` — build-and-run confirmation that a change does what it should,
+  complementing (not replacing) the TDD red/green test cycle above.
 
 ### Constraints
 - You CANNOT create or close GitHub issues (TPM responsibility)
