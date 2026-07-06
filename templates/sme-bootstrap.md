@@ -77,3 +77,17 @@ Report to the user:
 
 The generated SME is project-owned — committed to the repo, never overwritten
 by framework updates.
+
+## Step 8: Dispatch Is Already Available (DX-036)
+
+No further action is needed to make the new SME dispatchable from a TPM
+session. The framework `tpm.md` declares an unrestricted `Agent` tool (not a
+parenthesized allowlist like `Agent(architect, dev)`), so the TPM can call
+`Agent(subagent_type="<name>", ...)` on the SME immediately after this
+procedure completes — no local override of `tpm.md` required.
+
+If you inherited a project where `tpm.md` was previously forked to hand-enumerate
+project agents (a workaround from before DX-036 landed), delete that local
+override and re-run `bash .ai-lindale/scripts/install.sh` (or
+`--force`) to restore the framework's unrestricted `tpm.md`, then verify the
+SME is reachable via `Agent`.
