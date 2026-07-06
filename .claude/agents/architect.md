@@ -10,6 +10,7 @@ tools:
 model: claude-opus-4-7
 color: orange
 initialPrompt: /architect
+maxTurns: 50
 ---
 
 ## Sandbox Reminder

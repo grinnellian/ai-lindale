@@ -12,6 +12,7 @@ tools:
 model: claude-opus-4-7
 color: purple
 initialPrompt: /tpm
+maxTurns: 100
 ---
 
 ## Sandbox Reminder
