@@ -51,14 +51,62 @@ Read each ticket's labels via `gh issue view N --json labels` to determine state
 | `arch-approved` | PLANNED | Spawn **dev** subagent to implement. On dispatch, apply `in-progress`, remove `arch-approved`. |
 | `in-progress` | IN_PROGRESS | Skip — dev is working. |
 | `ready-for-review` | REVIEW | Coordinate review cycle (see Rules for review scope and bar): the routed planner reviews the PR (see Routing; defaults to **architect**); dispatch additional reviewers per the `routing.reviewers` glob matches for what the PR touches (falls back to planner-only review when unconfigured). Send review comments back to dev for fixes. After all reviews pass: if `--auto-merge`, merge PR and close issue; otherwise report to user. |
-| `needs-human` | ESCALATED | Report required human action, skip. On next run, check for human response (issue comment) and resume from appropriate state. |
+| `needs-human` | ESCALATED | Report required human action, skip. On next run, check for human response (issue comment) and resume from appropriate state (see Escalation Protocol). |
 | `blocked` | BLOCKED | Report blocker, skip. |
+
+## Escalation Protocol (DX-030)
+
+`needs-human` is distinct from `blocked`: `blocked` means an external
+dependency (another ticket, an outage, a missing credential) is stalling
+work; `needs-human` means an agent has hit a fork that requires human
+judgment, verification, or sign-off before the state machine can safely
+continue — the ticket is otherwise unblocked.
+
+**When to escalate.** Apply `needs-human` when:
+- An implementation plan includes a manual verification gate (e.g. "empirically
+  confirm X before writing code" — the original BUG-002 trigger for this state)
+- A design decision requires human judgment, not just architect review
+- A ticket requires access or permissions no agent holds
+- Any agent (TPM, architect, dev, reviewer) identifies a risk that warrants
+  human sign-off before proceeding
+
+**Escalation comment.** When applying `needs-human`, post an issue comment
+with this shape so it's unambiguous to both the human and the next TPM run:
+
+```
+## Needs Human
+
+**Blocked at:** <state the ticket was in, e.g. PLANNED, REVIEW>
+**Action required:** <exactly what the human needs to do or decide>
+**Resume as:** <the label/state to re-enter once resolved, e.g. arch-approved>
+
+-Claude TPM
+```
+
+Record the same detail (ticket, blocked-at state, resume-as state) in the
+run's Memory tracker — the tracker is what lets a *later* session (not just
+the next iteration of the same run) resume correctly even if the escalation
+comment scrolls out of context.
+
+**Resuming.** On each run, for every ticket carrying `needs-human`, fetch
+comments via `gh issue view N --json comments` and look for any comment
+*after* the TPM's own escalation comment that is not signed by an agent role
+(no `-Claude <Role>` signature) — that's the human response. If found:
+1. Read the "Resume as" state from the escalation comment (or the Memory
+   tracker if the comment isn't available/legible).
+2. Remove `needs-human`, apply the resume-as label, and re-enter the state
+   machine at that state on this same run.
+3. Note the resumption in the Memory tracker.
+
+If no qualifying human comment exists yet, leave the label alone, skip the
+ticket, and re-report the pending action in the run summary — don't re-post
+the escalation comment on every run.
 
 ## Rules
 
 - Dispatch independent architect reviews in parallel
 - Respect ticket dependencies — don't start a ticket until its prerequisites are in `in-progress` or later
-- On human escalation: apply `needs-human` label, comment what the human needs to do, move to next ticket
+- On human escalation: follow the Escalation Protocol (apply `needs-human`, post the structured comment, record it in the Memory tracker), then move to next ticket
 - On blocker: apply `blocked` label, comment context on the issue, move to next ticket
 - When all actionable tickets are dispatched, produce a summary table of statuses
 - `--auto-merge` skips the human gate, not the review cycle — every PR gets agent review before merge
