@@ -12,6 +12,12 @@ Review `memory/patterns.md` before starting — the git/GitHub operational lore
 section (mergeable-flips-to-UNKNOWN, `git mv` staging, stash hygiene across
 worktree switches) applies directly to this command and is not repeated here.
 
+This is the queue-maintenance companion to `/autodev` (`.claude/commands/autodev.md`):
+`/autodev` drives individual tickets through the lifecycle state machine and
+its review/merge cycle, while `/pr-refresh` reconciles and rebases the queue
+of open PRs those runs produce. Run it before or between `/autodev` passes,
+not as a substitute for either command's own review gate.
+
 ## Phase 1 — Reconcile
 
 1. `gh pr list --state open --json number,title,headRefName,baseRefName,mergeable,updatedAt` to get the live queue.
@@ -41,7 +47,16 @@ For each PR in the merge order from Phase 1:
    (`git worktree list`) — if so, work from that worktree path rather than
    creating a second checkout, and respect stash hygiene when switching
    (memory/patterns.md).
-2. `git fetch origin && git rebase origin/main` on the PR's branch.
+2. Rebase onto the PR's actual base branch, not a hardcoded `main` — use the
+   `baseRefName` fetched in Phase 1 step 1 (`gh pr view <number> --json
+   baseRefName` if it needs refreshing): `git fetch origin && git rebase
+   origin/<baseRefName>`. For a Tier 1 PR this is ordinarily `main`; for a
+   Tier 2 PR stacked on another open PR, `baseRefName` is that PR's branch —
+   rebasing onto `origin/main` instead would replay the parent branch's
+   commits into the child and pollute its diff. If the parent PR in a Tier 2
+   pair hasn't merged yet, this step still rebases onto the parent branch as
+   it currently stands; re-run once the parent merges and GitHub retargets
+   the child.
 3. On conflict: resolve using the cross-PR conflict matrix from Phase 1 as
    context (a conflict between two PRs known to touch the same file is
    expected, not a surprise). If resolution is non-trivial or ambiguous,
