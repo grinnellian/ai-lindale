@@ -537,6 +537,55 @@ test_skill_template_exists() {
   assert_file_exists "$REPO_ROOT/templates/skill.md"
 }
 
+# FEAT-011 review finding M1: a stale symlink pointing at an *existing
+# directory* (the skills case -- skills are directory symlinks, unlike the
+# file symlinks used for agents/commands) must be replaced outright by the
+# refresh path, not dereferenced into. `ln -sf` on such a destination
+# creates the new link *inside* the stale target instead of replacing it,
+# so the installer would falsely report "refreshed" while leaving the old
+# (wrong) symlink in place and depositing a stray link inside the old
+# target directory.
+test_skill_stale_dir_symlink_refreshed_correctly() {
+  setup_project
+  setup_framework_skill "autocommit"
+  bash "$FRAMEWORK/scripts/install.sh"
+
+  # Replace the correct skill symlink with one pointing at a *different*,
+  # still-existing directory (simulating a stale target from before a path
+  # restructure -- see install.sh's INFRA-001 note).
+  rm ".claude/skills/autocommit"
+  mkdir -p "old-framework/.claude/skills/autocommit"
+  echo "stale" > "old-framework/.claude/skills/autocommit/SKILL.md"
+  ln -s "../../old-framework/.claude/skills/autocommit" ".claude/skills/autocommit"
+
+  bash "$FRAMEWORK/scripts/install.sh" > /dev/null
+
+  # The symlink itself must now point at the correct, current framework
+  # skill -- not still resolve to the stale target.
+  assert_symlink ".claude/skills/autocommit" "../../.ai-lindale/.claude/skills/autocommit" || return 1
+
+  # The stale target directory must not have been polluted with a stray
+  # symlink deposited inside it by a dereferencing `ln -sf`.
+  if [ -e "old-framework/.claude/skills/autocommit/autocommit" ]; then
+    echo "    Stale target directory was polluted with a stray symlink (ln -sf dereference bug)"
+    return 1
+  fi
+  return 0
+}
+
+# Companion assertion: file symlinks (agents/commands) are not affected by
+# the directory-symlink dereference bug, since `ln -sf` replaces a symlink
+# pointing at an existing *file* correctly.
+test_agent_stale_file_symlink_refreshed_correctly() {
+  setup_project
+  bash "$FRAMEWORK/scripts/install.sh"
+  rm ".claude/agents/architect.md"
+  echo "# stale target" > "old-target-file.md"
+  ln -s "../../old-target-file.md" ".claude/agents/architect.md"
+  bash "$FRAMEWORK/scripts/install.sh" > /dev/null
+  assert_symlink ".claude/agents/architect.md" "../../.ai-lindale/.claude/agents/architect.md"
+}
+
 # --- standardization playbook tests (DX-025) ---
 
 test_standardization_playbook_template_exists() {
@@ -696,6 +745,8 @@ run_test "skills: local override of framework skill is skipped" test_framework_s
 run_test "skills: idempotent on re-run" test_skills_idempotent
 run_test "guide: documents .claude/skills convention" test_guide_documents_skills
 run_test "templates/skill.md skeleton exists" test_skill_template_exists
+run_test "skills: stale dir-symlink refreshed without corrupting target" test_skill_stale_dir_symlink_refreshed_correctly
+run_test "agents: stale file-symlink refreshed correctly" test_agent_stale_file_symlink_refreshed_correctly
 
 echo ""
 echo "--- handoff procedure tests (FEAT-013) ---"
