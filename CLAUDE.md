@@ -70,7 +70,7 @@ ai-lindale/
 ├── docs/
 │   ├── adoption-guide.md  # Downstream adoption guide
 │   ├── faq.md
-│   ├── pod.md             # Pod (dev container) image docs
+│   ├── pod.md             # Pod (the container agents live and work in) image docs
 │   └── roadmap.md
 ├── infra/
 │   └── pod-base/          # Dockerfile + build assets for the pod container image
