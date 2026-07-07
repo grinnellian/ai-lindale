@@ -43,6 +43,17 @@ test_directory_containment() {
   [ "$rc" -eq 1 ]
 }
 
+test_directory_containment_no_trailing_slash() {
+  # DX-012 review finding MAJOR-1: the checker's own comment claims a
+  # slash-less directory prefix (e.g. "src/feature") is detected as
+  # containing "src/feature/handler.ts", but only the trailing-slash form
+  # was implemented. Exact reproduction from the review.
+  local rc
+  bash "$CHECKER" "src/feature" "src/feature/handler.ts" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 1 ]
+}
+
 test_empty_lists() {
   local rc
   bash "$CHECKER" "" "" >/dev/null 2>&1
@@ -83,6 +94,7 @@ echo ""
 run_test "no overlap between disjoint lists -> exit 0" test_no_overlap
 run_test "exact file overlap -> exit 1" test_exact_overlap
 run_test "directory containment -> exit 1" test_directory_containment
+run_test "directory containment without trailing slash -> exit 1" test_directory_containment_no_trailing_slash
 run_test "empty lists -> exit 0" test_empty_lists
 run_test "one empty list -> exit 0" test_one_empty_list
 run_test "shared config file -> warning, exit 0" test_shared_config_warns_not_blocks
