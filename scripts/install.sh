@@ -60,7 +60,11 @@ link_managed() {
       OK=$((OK + 1))
       return 0
     fi
-    ln -sf "$src" "$dest"
+    # -n (BSD/macOS synonym for -h): do not follow $dest if it is a symlink
+    # to an existing directory. Without it, `ln -sf` dereferences a stale
+    # directory symlink (the skills case) and creates the new link *inside*
+    # the stale target instead of replacing it -- see FEAT-011 review M1.
+    ln -sfn "$src" "$dest"
     echo "  refreshed $dest (was -> $current)"
     REFRESHED=$((REFRESHED + 1))
     return 0
