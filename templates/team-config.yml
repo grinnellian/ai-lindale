@@ -22,8 +22,7 @@
 # Autodev state-label mapping — downstream projects commonly remap the
 # lifecycle labels used by .claude/commands/autodev.md's state machine
 # (e.g. `needs-arch-review`, `arch-approved`, `ready-for-review`) to their
-# own label sets. Not yet configurable here — still a follow-up.
-# See DX-038 / #89.
+# own label sets. Not yet configurable here — future work, no ticket yet.
 # labels:
 #   needs-arch-review: needs-arch-review
 #   arch-approved: arch-approved
