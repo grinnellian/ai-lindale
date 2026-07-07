@@ -188,11 +188,13 @@ fi
 cat > .claude/README.md << 'LINGLINK'
 # .claude/ structure
 
-Core agents (architect, tpm, dev) are symlinked from the Lindalë
-framework (.ai-lindale/). Do not edit them here — edit the framework repo.
+Framework agents and commands (everything under .ai-lindale/.claude/agents/
+and .ai-lindale/.claude/commands/) are symlinked from the Lindalë framework
+(.ai-lindale/). Do not edit them here — edit the framework repo.
 
-Project-specific agents (e.g. <domain>-sme) are real files
-owned by this project.
+Project-specific agents, commands, and skills (e.g. <domain>-sme) are real
+files owned by this project. .claude/skills/ is project-owned by default —
+only skills the framework itself ships get symlinked here.
 
 To update the framework:
 
