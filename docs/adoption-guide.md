@@ -152,10 +152,10 @@ reaches for.
 
 | Role | Skills assigned | Rationale |
 |---|---|---|
-| `dev` | `simplify`, `claude-api`, `verify` | Cleanup pass before ready-for-review; SDK reference for Claude API/Agent SDK work; build-and-run confirmation alongside the TDD red/green cycle. |
+| `dev` | `simplify`, `verify` (+ `claude-api` on demand) | Cleanup pass before ready-for-review; build-and-run confirmation alongside the TDD red/green cycle. `claude-api` is invoked on demand rather than preloaded — its full content (~830K) blows the subagent prompt budget (see memory/reviews/pr-101/DX-024.md). |
 | `tpm` | `loop` | Recurring status/ticket-lifecycle checks while a session stays open. |
 | `architect` | `code-review` | Reviews existing diffs/code for correctness before planning against them; read-only in practice (no `--fix`), consistent with the architect's no-code-modification constraint. |
-| `researcher` | `claude-api` | Reference material when a research question is specifically about Anthropic's own APIs/SDKs rather than a third-party ecosystem. |
+| `researcher` | (`claude-api` on demand) | Invoked when a research question is specifically about Anthropic's own APIs/SDKs — on demand, not preloaded, for the same prompt-budget reason as `dev`. |
 | `audit-repo` | none | Every bundled skill audited builds, runs, or diffs a local checkout; this role is constrained to `gh api` calls against a never-cloned target repo, so none apply without contradicting that constraint. |
 
 Once the framework or a downstream project ships its own skills under
