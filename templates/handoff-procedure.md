@@ -22,7 +22,8 @@ uncommitted) into four buckets:
    client's repo should carry long-term: handoff context, decision
    rationale, open threads, "things I'd do differently."
 3. **Framework** — Lindale-specific artifacts: `.claude/agents/`,
-   `.claude/commands/`, `memory/`, hook scripts, `team-config.yml`. Useful to
+   `.claude/commands/`, `memory/`, any bare-metal enforcement scripts the
+   engagement added on top of the framework, `team-config.yml`. Useful to
    the next engagement using this framework, not necessarily to this client.
 4. **Working-copy** — anything personal to the operator that shouldn't be in
    any shared branch at all: scratch notes, local credentials, WIP
@@ -45,9 +46,9 @@ picked) by the client — it should read as "the state of the project," not
 Keep Framework-bucket content on its own branch (convention:
 `<owner>/devcontainer-setup` or similarly scoped name) that does **not**
 merge into `main`. This branch preserves the agent configuration, memory,
-and hooks used during the engagement so the next engagement can start from
-them, without polluting the client's `main` with framework internals the
-client didn't ask for and doesn't need to maintain.
+and any engagement-specific tooling used during the engagement so the next
+engagement can start from them, without polluting the client's `main` with
+framework internals the client didn't ask for and doesn't need to maintain.
 
 ## Step 4: Hoist Personal Files Out of the Repo
 

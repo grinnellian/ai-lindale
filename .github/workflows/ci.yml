@@ -15,8 +15,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Hook enforcement tests
-        run: bash scripts/hooks/tests/test-hooks.sh
-
       - name: Install / adoption tests
         run: bash scripts/tests/test-adoption.sh
+
+      - name: Branch naming tests
+        run: bash scripts/tests/test-branch-naming.sh
+
+      - name: File overlap tests
+        run: bash scripts/tests/test-file-overlap.sh
+
+      - name: Audit-repo fixture tests
+        run: bash scripts/tests/test-audit-repo-fixtures.sh
+
+      - name: Researcher fixture tests
+        run: bash scripts/tests/test-researcher-fixtures.sh
+
+      - name: Skills assignment tests
+        run: bash scripts/tests/test-skills-assignment.sh

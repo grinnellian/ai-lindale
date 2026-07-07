@@ -4,7 +4,7 @@ Process the provided tickets through the lifecycle state machine.
 
 If specific tickets or a milestone were provided, process them. If no arguments were given, survey open tickets, summarize their states, and recommend what to work on next — then wait for the user to confirm before dispatching.
 
-You should be invoked via `claude --agent tpm` for full hook enforcement. If not, warn the user on first message.
+You should be invoked via `claude --agent tpm` for a dedicated TPM session (the slash-command form loads the same system prompt into the current session). Both are prompt-level role adoption — enforcement comes from the container boundary, not the invocation path. If invoked another way, warn the user on first message.
 
 ## Memory
 

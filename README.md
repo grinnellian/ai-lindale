@@ -22,26 +22,41 @@ ai-lindale/
 ├── .claude/
 │   ├── agents/                      # Role definitions (frontmatter + system prompts)
 │   │   ├── architect.md
+│   │   ├── audit-repo.md
 │   │   ├── dev.md
+│   │   ├── researcher.md
 │   │   └── tpm.md
 │   ├── commands/                    # Slash commands that invoke agents
 │   │   ├── architect.md
+│   │   ├── audit-repo.md
 │   │   ├── autodev.md               # TPM-driven ticket lifecycle orchestration
 │   │   ├── dev.md
+│   │   ├── handoff.md               # Engagement handoff walkthrough
+│   │   ├── pr-refresh.md            # Open-PR queue reconciliation and rebase
+│   │   ├── researcher.md
 │   │   └── tpm.md
 │   └── settings.local.json
 ├── docs/
-│   └── adoption-guide.md
+│   ├── adoption-guide.md
+│   ├── faq.md
+│   ├── pod.md                        # Pod (dev container) image docs
+│   └── roadmap.md
+├── infra/
+│   └── pod-base/                     # Dockerfile + build assets for the pod container image
 ├── memory/
 │   ├── MEMORY_INDEX.md
 │   └── decisions.md
 ├── scripts/
 │   ├── install.sh
 │   ├── sync.sh
-│   └── tests/test-adoption.sh
+│   ├── validate-branch-name.sh
+│   ├── check-file-overlap.sh
+│   └── tests/*.sh
 ├── templates/
 │   ├── sme.md                         # Meta-template for TPM-generated domain SME
 │   ├── sme-bootstrap.md               # Bootstrap procedure for SME generation
+│   ├── handoff-procedure.md
+│   ├── standardization-playbook.md
 │   └── team-config.yml
 ├── CLAUDE.md
 └── README.md

@@ -55,9 +55,6 @@ Generate a concrete agent file at `.claude/agents/<name>.md` by replacing all
 - `{{DOMAIN_DESCRIPTION}}`: 1-2 sentences of domain-specific framing
 - `{{DOMAIN_CRITERIA}}`: bullet list of domain-specific review criteria
 
-Note: `CLAUDE_AGENT_ROLE` in the hook command is always `sme` (hardcoded in the
-template). This is the permission class, not the identity. Do not change it.
-
 ## Step 6: Generate Command File
 
 Generate a matching command file at `.claude/commands/<name>.md`:
