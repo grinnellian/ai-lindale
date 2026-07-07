@@ -18,9 +18,13 @@ name: lindale-dev
 agent: claude
 interactive: true
 
-# pod-base already ships git/gh/node/python/claude — moat must not apt-install
-# its default dependency set (the image runs as non-root `dev`, so apt would
-# fail anyway). Empty list = trust the base image.
+# pod-base already ships git/gh/node/python/claude, so moat's default
+# dependency set would be duplicate or downgraded tooling on top of what the
+# base image already provides. Empty list = trust the base image for these
+# tools; it does not skip moat's own baseline apt layer, which still runs
+# regardless of this setting (see the M1 finding below on why that layer
+# needs a root shim, and the upstream nit tracked from #95 on the
+# duplication itself).
 dependencies: []
 
 # pod-base provides Claude Code, gh, git, node, python on Ubuntu 24.04 —
@@ -32,10 +36,18 @@ dependencies: []
 # handles non-root bases, build the shim locally:
 #   printf 'FROM ghcr.io/grinnellian/ai-lindale-pod-base:edge\nUSER root\n' \
 #     | docker build -t ai-lindale-pod-base:moat-base -
+# The FROM line above requires a locally built pod-base image (or a docker
+# login with GHCR read access) — the ghcr.io/grinnellian/ai-lindale-pod-base
+# package is currently private, so an anonymous `docker build` of this shim
+# fails on a fresh host. Tracked as INFRA-016 (#100).
 base_image: ai-lindale-pod-base:moat-base
 
-# Apple containers can't run docker-in-docker and the pod-base image is
-# validated against Docker; pin the runtime for predictability.
+# Runtime pin: podman is verified working (re-verified independently, see
+# #95) and Apple containers remain unable to run docker-in-docker, which
+# pod-base's build/smoke-test steps need — so `runtime` stays pinned rather
+# than left to auto-detect. Docker is not the only validated engine; revisit
+# this pin once the podman engine choice is finalized (FEAT-014, #94) and
+# upstream podman support lands (majorcontext/moat#435).
 runtime: docker
 
 grants:
