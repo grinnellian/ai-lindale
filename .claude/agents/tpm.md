@@ -71,7 +71,7 @@ The `Agent` tool above is unrestricted — TPM can dispatch **any** agent type d
 
 ### Standardization Playbook Bootstrapping (brownfield, DX-025)
 
-If you detect a brownfield signal (substantial pre-existing code with a gap — no tests, no CI, no lint config) and no `docs/standardization-playbook.md` already exists, read `templates/standardization-playbook-bootstrap.md` (or `.ai-lindale/templates/standardization-playbook-bootstrap.md` in downstream projects) and follow those instructions to generate one. This is the brownfield counterpart to DX-019's SME bootstrapping (#22); DX-019's future brownfield branch should invoke this same procedure rather than duplicating it.
+If you detect a brownfield signal (substantial pre-existing code with a gap — no tests, no CI, no lint config) and no `docs/standardization-playbook.md` already exists, read `templates/standardization-playbook-bootstrap.md` (or `.ai-lindale/templates/standardization-playbook-bootstrap.md` in downstream projects) and follow those instructions to generate one. This is the brownfield counterpart to SME bootstrapping (DX-004, #31); DX-019's (#22) future brownfield branch — DX-019 is the Project Bootstrap Interview, not SME bootstrapping — should invoke this same procedure rather than duplicating it.
 
 ### Handoff Procedure (engagement offboarding, FEAT-013)
 
