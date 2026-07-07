@@ -24,8 +24,8 @@ setup_project() {
   # Simulate the framework submodule at .ai-lindale/
   FRAMEWORK="$PROJECT/.ai-lindale"
   mkdir -p "$FRAMEWORK/.claude/agents" "$FRAMEWORK/.claude/commands" "$FRAMEWORK/scripts" "$FRAMEWORK/templates"
-  for agent in architect tpm dev; do
-    cp "$REPO_ROOT/.claude/agents/${agent}.md" "$FRAMEWORK/.claude/agents/${agent}.md"
+  for agent_file in "$REPO_ROOT"/.claude/agents/*.md; do
+    cp "$agent_file" "$FRAMEWORK/.claude/agents/$(basename "$agent_file")"
   done
   for cmd_file in "$REPO_ROOT"/.claude/commands/*.md; do
     cp "$cmd_file" "$FRAMEWORK/.claude/commands/$(basename "$cmd_file")"
@@ -162,6 +162,35 @@ test_all_framework_commands_symlinked() {
   done
   # Explicitly assert autodev.md specifically, since that's the reported bug.
   assert_symlink ".claude/commands/autodev.md" "../../.ai-lindale/.claude/commands/autodev.md"
+}
+
+test_all_framework_agents_symlinked() {
+  # BUG-009: install.sh must not hardcode the agent list — every *.md file
+  # present in the framework's .claude/agents/ (including researcher.md and
+  # audit-repo.md) must get symlinked downstream.
+  setup_project
+  bash "$FRAMEWORK/scripts/install.sh"
+  local agent_file base
+  for agent_file in "$FRAMEWORK"/.claude/agents/*.md; do
+    base=$(basename "$agent_file")
+    assert_symlink ".claude/agents/${base}" "../../.ai-lindale/.claude/agents/${base}" || return 1
+  done
+  # Explicitly assert researcher.md and audit-repo.md, since those are the
+  # reported bug.
+  assert_symlink ".claude/agents/researcher.md" "../../.ai-lindale/.claude/agents/researcher.md" &&
+  assert_symlink ".claude/agents/audit-repo.md" "../../.ai-lindale/.claude/agents/audit-repo.md"
+}
+
+test_project_agent_override_preserved() {
+  # BUG-007 skip path must apply to non-core agents too: a downstream project
+  # can name its own SME the same as a framework agent (e.g. researcher.md),
+  # and install.sh must not clobber it.
+  setup_project
+  mkdir -p .claude/agents
+  echo "# Project-specific researcher SME" > .claude/agents/researcher.md
+  bash "$FRAMEWORK/scripts/install.sh"
+  assert_file_not_symlink ".claude/agents/researcher.md" &&
+  assert_file_contains ".claude/agents/researcher.md" "Project-specific researcher SME"
 }
 
 test_preserves_project_files() {
@@ -610,6 +639,8 @@ echo "--- install.sh tests ---"
 run_test "creates agent symlinks" test_agent_symlinks
 run_test "creates command symlinks" test_command_symlinks
 run_test "symlinks all framework commands, incl. autodev" test_all_framework_commands_symlinked
+run_test "symlinks all framework agents, incl. researcher and audit-repo" test_all_framework_agents_symlinked
+run_test "preserves project-owned agent at colliding name" test_project_agent_override_preserved
 run_test "preserves project-owned files" test_preserves_project_files
 run_test "creates team-config.yml template" test_creates_team_config_template
 run_test "does not overwrite existing config" test_does_not_overwrite_existing_config
