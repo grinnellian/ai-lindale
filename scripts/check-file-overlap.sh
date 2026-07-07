@@ -69,26 +69,19 @@ for raw_a in ${ARR_A[@]+"${ARR_A[@]}"}; do
       continue
     fi
 
-    # Directory containment: either path ends with "/" in its original form,
-    # or one path is a prefix directory of the other.
-    case "$raw_a" in
-      */)
-        case "$b" in
-          "$a"/*)
-            echo "OVERLAP: $b is inside directory $raw_a"
-            OVERLAP_FOUND=1
-            ;;
-        esac
+    # Directory containment: one path is a prefix directory of the other,
+    # whether or not it was written with a trailing slash (e.g. "src/feature"
+    # containing "src/feature/handler.ts").
+    case "$b" in
+      "$a"/*)
+        echo "OVERLAP: $b is inside directory $a"
+        OVERLAP_FOUND=1
         ;;
     esac
-    case "$raw_b" in
-      */)
-        case "$a" in
-          "$b"/*)
-            echo "OVERLAP: $a is inside directory $raw_b"
-            OVERLAP_FOUND=1
-            ;;
-        esac
+    case "$a" in
+      "$b"/*)
+        echo "OVERLAP: $a is inside directory $b"
+        OVERLAP_FOUND=1
         ;;
     esac
   done
