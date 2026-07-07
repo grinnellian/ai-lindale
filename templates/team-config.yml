@@ -32,8 +32,10 @@
 # Persona routing (DX-039) — override which agent plans a ticket or joins
 # review, without forking autodev.md or tpm.md. Agent names must exist in
 # .claude/agents/ (or be dispatchable via the Agent tool). If this whole
-# `routing:` block is absent, autodev falls back to today's default:
-# every ticket is planned by `architect` and reviewed by `architect` alone.
+# `routing:` block is absent, autodev falls back to today's default: every
+# ticket is planned by `architect`, and review is the architect's review
+# plus discretionary domain reviewers (SME, security, i18n, etc.) dispatched
+# as appropriate for what the PR touches.
 #
 # routing:
 #   planners:
@@ -53,9 +55,12 @@
 #   reviewers:
 #     # path-glob -> additional reviewer agent dispatched alongside the
 #     # architect during the REVIEW state, when the PR touches matching
-#     # paths. Globs are matched against `git diff --name-only` for the PR.
-#     # No default entries — an empty/absent table means architect-only
-#     # review, same as today.
+#     # paths. Globs are matched against `gh pr diff --name-only` for the PR.
+#     # No default entries — an empty/absent table doesn't turn off review
+#     # fan-out, it just leaves it discretionary: the architect still
+#     # dispatches domain reviewers (SME, security, i18n, etc.) as
+#     # appropriate, same as before this config existed. Configuring entries
+#     # here adds deterministic glob-based dispatch on top of that.
 #     # "docs/**": domain-sme
 #     # "*.sql": db-reviewer
 #     # "src/i18n/**": i18n-reviewer

@@ -31,8 +31,12 @@ the project's `team-config.yml` (or `.claude/team-config.yml` downstream).
   reviews the PR, match the PR's changed paths (`gh pr diff --name-only`)
   against each glob key in `routing.reviewers`. Dispatch the mapped agent for
   every matching glob, in addition to the planner review. If `routing:` is
-  absent or `reviewers` has no matching entry, review is planner-only — same
-  as today.
+  absent or `reviewers` has no matching entry, review is the planner review
+  plus discretionary domain reviewers (SME, security, i18n, etc.) dispatched
+  as the TPM judges appropriate for what the PR touches — the same
+  discretionary fan-out as before `routing.reviewers` existed. Configuring
+  `routing.reviewers` adds deterministic glob-based dispatch on top of that
+  discretion; it does not replace it.
 - Agent names in both tables must be dispatchable via the `Agent` tool — a
   project-defined agent in `.claude/agents/` (see DX-036 / #85, which lifted
   the `Agent(architect, dev)` frontmatter restriction on `tpm.md` so the TPM
@@ -50,7 +54,7 @@ Read each ticket's labels via `gh issue view N --json labels` to determine state
 | `needs-arch-review` | NEEDS_REVIEW | Spawn the routed planner subagent (see Routing; defaults to **architect**) to review and post TDD plan. On completion, apply `arch-approved`, remove `needs-arch-review`. |
 | `arch-approved` | PLANNED | Spawn **dev** subagent to implement. On dispatch, apply `in-progress`, remove `arch-approved`. |
 | `in-progress` | IN_PROGRESS | Skip — dev is working. |
-| `ready-for-review` | REVIEW | Coordinate review cycle (see Rules for review scope and bar): the routed planner reviews the PR (see Routing; defaults to **architect**); dispatch additional reviewers per the `routing.reviewers` glob matches for what the PR touches (falls back to planner-only review when unconfigured). Send review comments back to dev for fixes. After all reviews pass: if `--auto-merge`, merge PR and close issue; otherwise report to user. |
+| `ready-for-review` | REVIEW | Coordinate review cycle (see Rules for review scope and bar): the routed planner reviews the PR (see Routing; defaults to **architect**); dispatch additional reviewers per the `routing.reviewers` glob matches for what the PR touches, falling back to discretionary domain-reviewer dispatch (SME, security, i18n, etc., as appropriate) when unconfigured. Send review comments back to dev for fixes. After all reviews pass: if `--auto-merge`, merge PR and close issue; otherwise report to user. |
 | `needs-human` | ESCALATED | Report required human action, skip. On next run, check for human response (issue comment) and resume from appropriate state (see Escalation Protocol). |
 | `blocked` | BLOCKED | Report blocker, skip. |
 
