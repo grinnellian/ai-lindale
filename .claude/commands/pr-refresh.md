@@ -3,8 +3,10 @@ Reconcile and rebase the open-PR queue.
 ## Startup
 
 You should be invoked via `claude --agent tpm` (or an equivalent agent with
-`gh`, `git`, and memory-file access) for full hook enforcement. If not, warn
-the user on first message.
+`gh`, `git`, and memory-file access) for a dedicated session with the right
+tool scope. Both `--agent` and the slash-command form are prompt-level role
+adoption — enforcement comes from the container boundary, not the invocation
+path. If invoked another way, warn the user on first message.
 
 Review `memory/patterns.md` before starting — the git/GitHub operational lore
 section (mergeable-flips-to-UNKNOWN, `git mv` staging, stash hygiene across

@@ -6,9 +6,10 @@
 # with domain expertise baked into the system prompt.
 #
 # The TPM should replace all {{PLACEHOLDERS}} when generating.
-# Note: CLAUDE_AGENT_ROLE is always "sme" (the permission class), regardless
-# of {{AGENT_NAME}} (the identity). The hook cares about what the agent is
-# allowed to do, not what it's called.
+# Constraints below (read-only, no Write/Edit/Agent) are behavioral guidance
+# enforced by the prompt, not by a hook — see CLAUDE.md's Security Boundary
+# section. The container is the enforcement boundary; role constraints in
+# agent prompts are conventions the agent follows, not a wall that stops it.
 
 ---
 name: {{AGENT_NAME}}
@@ -20,17 +21,6 @@ tools:
   - Bash
 model: claude-sonnet-4-6
 permissionMode: plan
-disallowedTools:
-  - Write
-  - Edit
-  - NotebookEdit
-  - Agent
-hooks:
-  PreToolUse:
-    - matcher: "Bash"
-      hooks:
-        - type: command
-          command: "CLAUDE_AGENT_ROLE=sme ./scripts/hooks/bash-allowlist.sh"
 ---
 
 ## Sandbox Reminder

@@ -53,28 +53,46 @@ ai-lindale/
 ├── .claude/
 │   ├── agents/            # Agent definitions (frontmatter + system prompts)
 │   │   ├── architect.md
+│   │   ├── audit-repo.md
 │   │   ├── dev.md
+│   │   ├── researcher.md
 │   │   └── tpm.md
 │   ├── commands/          # Slash commands that invoke agents
 │   │   ├── architect.md
+│   │   ├── audit-repo.md
 │   │   ├── autodev.md     # TPM-driven ticket lifecycle orchestration
 │   │   ├── dev.md
+│   │   ├── handoff.md     # Engagement handoff walkthrough
+│   │   ├── pr-refresh.md  # Open-PR queue reconciliation and rebase
+│   │   ├── researcher.md
 │   │   └── tpm.md
 │   └── settings.local.json
 ├── docs/
-│   └── adoption-guide.md  # Downstream adoption guide
+│   ├── adoption-guide.md  # Downstream adoption guide
+│   ├── faq.md
+│   ├── pod.md             # Pod (dev container) image docs
+│   └── roadmap.md
+├── infra/
+│   └── pod-base/          # Dockerfile + build assets for the pod container image
 ├── memory/
 │   ├── MEMORY_INDEX.md    # Index of all topic files
 │   └── *.md               # Topic-scoped memory files
 ├── scripts/
-│   ├── install.sh         # Downstream install via git submodule
-│   ├── sync.sh            # Downstream sync/update helper
+│   ├── check-file-overlap.sh    # Pre-dispatch file-overlap detection (DX-012)
+│   ├── install.sh                # Downstream install via git submodule
+│   ├── sync.sh                   # Downstream sync/update helper
+│   ├── validate-branch-name.sh   # Branch naming convention validator (DX-012)
 │   └── tests/
-│       └── test-adoption.sh
+│       └── *.sh                  # Test suites for scripts/ and adoption tooling
 └── templates/
-    ├── sme.md             # Meta-template for TPM-generated domain SME
-    ├── sme-bootstrap.md   # Bootstrap procedure for SME generation
-    └── team-config.yml    # Role overrides and project customization
+    ├── CLAUDE.md                            # Downstream CLAUDE.md scaffold
+    ├── handoff-procedure.md                 # Engagement handoff procedure
+    ├── skill.md                             # Starting skeleton for a project skill
+    ├── sme.md                               # Meta-template for TPM-generated domain SME
+    ├── sme-bootstrap.md                     # Bootstrap procedure for SME generation
+    ├── standardization-playbook.md          # Brownfield standardization playbook template
+    ├── standardization-playbook-bootstrap.md
+    └── team-config.yml                      # Role overrides and project customization
 ```
 
 ## Security Boundary
