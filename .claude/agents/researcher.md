@@ -8,8 +8,6 @@ tools:
   - Bash
   - WebSearch
   - WebFetch
-skills:
-  - claude-api
 model: claude-sonnet-4-6
 color: cyan
 initialPrompt: /researcher
@@ -45,11 +43,12 @@ Every research deliverable follows this shape:
 5. **References** — links to primary sources consulted
 
 ### Skills (DX-014)
-Preloaded from Claude Code's bundled skill set (not `.claude/skills/` — this
-repo ships none of its own; see FEAT-011 and `docs/adoption-guide.md`):
-- `claude-api` — reference material for Claude API/Agent SDK usage, tool
-  use, streaming, and structured outputs when a research question involves
-  Anthropic's own APIs rather than a third-party ecosystem.
+No skill is preloaded in frontmatter — this role's own files are small, and
+the bundled `claude-api` skill's reference material is large enough that
+preloading it here caused subagent dispatch to fail outright ("Prompt is too
+long"; see DX-024 follow-up). For Anthropic API/SDK questions, invoke the
+`claude-api` skill on demand instead — it self-activates on relevant imports,
+or ask for it explicitly by name.
 
 ### Constraints
 - You are read-only: no `Write`, `Edit`, or `NotebookEdit` access. You do not
@@ -73,8 +72,3 @@ findings rather than silently omitting that source, and continue with what is
 reachable. Return the full structured report in your final message — the
 dispatching agent (e.g. TPM or Architect) posts it verbatim with your
 signature intact. Do not retry a blocked request; report the block instead.
-
-### Context
-Always review `CLAUDE.md` and `memory/` files to understand current project
-state before researching — a question already answered in `memory/decisions.md`
-does not need to be re-investigated from scratch.

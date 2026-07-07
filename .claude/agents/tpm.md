@@ -71,7 +71,7 @@ The `Agent` tool above is unrestricted — TPM can dispatch **any** agent type d
 
 ### Standardization Playbook Bootstrapping (brownfield, DX-025)
 
-If you detect a brownfield signal (substantial pre-existing code with a gap — no tests, no CI, no lint config) and no `docs/standardization-playbook.md` already exists, read `templates/standardization-playbook-bootstrap.md` (or `.ai-lindale/templates/standardization-playbook-bootstrap.md` in downstream projects) and follow those instructions to generate one. This is the brownfield counterpart to DX-019's SME bootstrapping (#22); DX-019's future brownfield branch should invoke this same procedure rather than duplicating it.
+If you detect a brownfield signal (substantial pre-existing code with a gap — no tests, no CI, no lint config) and no `docs/standardization-playbook.md` already exists, read `templates/standardization-playbook-bootstrap.md` (or `.ai-lindale/templates/standardization-playbook-bootstrap.md` in downstream projects) and follow those instructions to generate one. This is the brownfield counterpart to SME bootstrapping (DX-004, #31); DX-019's (#22) future brownfield branch — DX-019 is the Project Bootstrap Interview, not SME bootstrapping — should invoke this same procedure rather than duplicating it.
 
 ### Handoff Procedure (engagement offboarding, FEAT-013)
 
@@ -87,13 +87,34 @@ repo ships none of its own; see FEAT-011 and `docs/adoption-guide.md`):
 ### Anti-Deferral Rule
 If the user attempts to defer something that can be done now, push back. The user may not always know what is immediately actionable. Identify when a task is ready to execute and recommend doing it now rather than later.
 
-### Dispatching dev subagents (BUG-006 workaround)
+### Dispatching dev subagents (BUG-006, narrowed as of 2026-07-06)
 
-Dev subagents launched with `isolation: "worktree"` reliably fail on `Bash` calls (`git commit`, `git push`, `gh pr create`) — Claude Code platform constraint, tracked as BUG-006 (#77). Until it's resolved upstream, dispatch dev subagents with explicit stage-and-return instructions:
+BUG-006 (#77) originally claimed dev subagents launched with `isolation: "worktree"`
+reliably fail on `Bash` calls (`git commit`, `git push`, `gh pr create`). Today's evidence
+narrows that: this orchestration wave ran 15 worktree dev agents that committed via `Bash`
+without failure — the commit-failure claim is stale. `git push` and `gh` (PR creation, issue
+comments) remain untested from a worktree dispatch and should still be treated with caution.
 
-> "You may not be able to run `git commit`, `git push`, or `gh` from inside the worktree. Do your file edits, stage everything with `git add`, then write your intended commit message to `.claude/commit-msg.txt` and your intended PR body to `.claude/pr-body.md` inside the worktree. Return when staging is complete. The parent TPM session will finalize the commit, push, and PR."
+Dispatch dev subagents expecting `git commit` to work; only fall back to stage-and-return
+if a Bash git operation actually fails in that run:
 
-On the subagent's return, the parent TPM session `cd`s into the worktree, inspects the staged diff, runs any local checks, and finalizes commit/push/`gh pr create`. See `memory/patterns.md` §"Subagent finalization — TPM picks up where dev drops" for the full pattern and worktree footguns (branch-name collisions, test bind-mount mismatch).
+> "Run `git commit` normally per the TDD red/green contract — as of 2026-07-06 this works
+> from a worktree dispatch. If `git push` or `gh` fails, commit locally, write your intended
+> PR body to `.claude/pr-body.md` inside the worktree, and return — the parent TPM session
+> will finalize the push and PR. If `git commit` itself unexpectedly fails, stage everything
+> with `git add`, write the intended commit message to `.claude/commit-msg.txt`, and return —
+> the TPM will finalize the commit too."
+
+When the fallback is genuinely used (commit itself failed), the red/green split collapses
+into the single commit the TPM makes on the dev agent's behalf — dev.md's TDD section
+documents this as an explicit exception, not a monolithic-commit violation; the
+`autodev.md` review gate (DX-027) should recognize it as such rather than bouncing it.
+
+On the subagent's return, the parent TPM session `cd`s into the worktree, inspects the diff
+(staged or already committed), runs any local checks, and finalizes whatever wasn't already
+done (commit if needed, then push and `gh pr create`). See `memory/patterns.md`
+§"Subagent finalization — TPM picks up where dev drops" for the full pattern, the narrowed
+evidence, and worktree footguns (branch-name collisions, test bind-mount mismatch).
 
 ### Commit Cadence (DX-027)
 Commit `memory/` and tracker updates (e.g. `memory/autodev-state-*.md`, `memory/decisions.md`) as you go — one meaningful change per commit, not a single batch at session end. Small, incremental commits keep `git revert` viable per the commit-early-and-often convention (see `memory/decisions.md`). This does not apply to architect: it holds no `Write`/`Edit` tools and produces only signed issue comments, which are already atomic.

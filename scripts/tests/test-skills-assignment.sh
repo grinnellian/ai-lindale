@@ -54,7 +54,7 @@ run_test() {
   fi
 }
 
-# --- dev: simplify, claude-api, verify ---
+# --- dev: simplify, verify (claude-api dropped from preload, DX-024) ---
 
 test_dev_has_skills_key() {
   assert_file_contains "$DEV_FILE" '^skills:'
@@ -64,8 +64,17 @@ test_dev_has_simplify() {
   assert_file_contains "$DEV_FILE" '  - simplify'
 }
 
-test_dev_has_claude_api() {
-  assert_file_contains "$DEV_FILE" '  - claude-api'
+# DX-024: claude-api was removed from dev's preloaded skills list. The same
+# bundled skill's size caused the researcher role's subagent dispatch to fail
+# outright ("Prompt is too long") — dev.md now documents invoking it on
+# demand instead of preloading it. See scripts/tests/test-researcher-fixtures.sh
+# for the analogous researcher-side fix and memory/reviews/pr-101/DX-024.md.
+test_dev_does_not_preload_claude_api() {
+  assert_file_not_contains "$DEV_FILE" '  - claude-api'
+}
+
+test_dev_documents_claude_api_on_demand() {
+  assert_file_contains "$DEV_FILE" 'claude-api. skill on demand'
 }
 
 test_dev_has_verify() {
@@ -92,14 +101,18 @@ test_architect_has_code_review() {
   assert_file_contains "$ARCHITECT_FILE" '  - code-review'
 }
 
-# --- researcher: claude-api ---
+# --- researcher: no preloaded skills (claude-api dropped, DX-024) ---
+# claude-api was removed from researcher's skills: frontmatter after it caused
+# subagent dispatch to fail with "Prompt is too long" — see
+# memory/reviews/pr-101/DX-024.md. researcher.md now documents invoking it
+# on demand instead, mirroring audit-repo's no-preload pattern below.
 
-test_researcher_has_skills_key() {
-  assert_file_contains "$RESEARCHER_FILE" '^skills:'
+test_researcher_has_no_skills_key() {
+  assert_file_not_contains "$RESEARCHER_FILE" '^skills:'
 }
 
-test_researcher_has_claude_api() {
-  assert_file_contains "$RESEARCHER_FILE" '  - claude-api'
+test_researcher_documents_claude_api_on_demand() {
+  assert_file_contains "$RESEARCHER_FILE" 'claude-api. skill on demand'
 }
 
 # --- audit-repo: no skills key, but rationale documented ---
@@ -137,7 +150,8 @@ echo ""
 echo "--- dev ---"
 run_test "dev has skills key" test_dev_has_skills_key
 run_test "dev has simplify" test_dev_has_simplify
-run_test "dev has claude-api" test_dev_has_claude_api
+run_test "dev does not preload claude-api" test_dev_does_not_preload_claude_api
+run_test "dev documents claude-api on demand" test_dev_documents_claude_api_on_demand
 run_test "dev has verify" test_dev_has_verify
 echo ""
 echo "--- tpm ---"
@@ -149,8 +163,8 @@ run_test "architect has skills key" test_architect_has_skills_key
 run_test "architect has code-review" test_architect_has_code_review
 echo ""
 echo "--- researcher ---"
-run_test "researcher has skills key" test_researcher_has_skills_key
-run_test "researcher has claude-api" test_researcher_has_claude_api
+run_test "researcher has no skills key" test_researcher_has_no_skills_key
+run_test "researcher documents claude-api on demand" test_researcher_documents_claude_api_on_demand
 echo ""
 echo "--- audit-repo ---"
 run_test "audit-repo has no skills key" test_audit_repo_has_no_skills_key

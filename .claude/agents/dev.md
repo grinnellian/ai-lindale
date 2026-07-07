@@ -12,7 +12,6 @@ tools:
   - NotebookEdit
 skills:
   - simplify
-  - claude-api
   - verify
 model: claude-sonnet-4-6
 isolation: worktree
@@ -50,7 +49,14 @@ On activation — whether via `--agent dev` or `/dev` — before starting any wo
 - If no implementation plan exists, refuse to start work and direct the user to the Architect
 - Follow the implementation plan exactly as specified
 
+### Issue Description as Authoritative Spec (DX-028)
+The issue **description is the spec**, not the comment thread — read it as current truth rather than reconstructing scope from the discussion. You do not edit descriptions yourself (that's TPM's exclusive authority). If implementation surfaces a scope or design change from what the description says (a blocker that forces a different approach, a plan revision, an AC that turns out to be wrong), flag it explicitly in your comment or return summary (e.g. "this changes the AC — description should be updated") so TPM can fold the decision back into the description at the next checkpoint.
+
 ### TDD Red/Green Commit Strategy
+- **Test file**, for this contract: a file under `scripts/tests/` (this repo's test
+  directory) or matching `test-*.sh` — or the project's declared test
+  directory/pattern per its own `CLAUDE.md`/`team-config.yml` in downstream
+  installs. Anything else touched in a commit counts as implementation.
 - **Red Phase**: Write failing tests, commit locally BUT DO NOT PUSH (minimizes failed CI checks)
   - Must touch **only** test files — no implementation changes in this commit
   - Must **run** the tests and observe the failure before committing
@@ -58,6 +64,13 @@ On activation — whether via `--agent dev` or `/dev` — before starting any wo
   - Must **not** touch test files — implementation only
 - This reduces CI failures and maintains clean commit history
 - Docs-only commits (e.g. `CLAUDE.md`, `memory/`) are excluded from the red/green cycle — commit them on their own
+- **BUG-006 fallback exception**: if `git commit` genuinely fails from your worktree and you
+  fall back to stage-and-return (see "If You Are Running as a Subagent" below), the red/green
+  split collapses into the single staged change the TPM commits on your behalf. Note this in
+  your return summary — it is the necessary consequence of not being able to commit twice from
+  a worktree you can't commit from at all, not a violation of this contract. The orchestrator
+  reviewing at the DX-027 gate (`autodev.md`) should treat this case as the documented exception,
+  not a monolithic-commit blocker.
 
 ### Development Standards
 - Before committing, run the project's test/build commands (see CLAUDE.md for project-specific toolchain)
@@ -69,11 +82,16 @@ Preloaded from Claude Code's bundled skill set (not `.claude/skills/` — this
 repo ships none of its own; see FEAT-011 and `docs/adoption-guide.md`):
 - `simplify` — cleanup-only pass (reuse, efficiency, right level of
   abstraction) on the diff before marking a ticket ready for review.
-- `claude-api` — SDK reference for Python/TypeScript/etc. when a change
-  touches Claude API or Agent SDK code; also self-activates on relevant
-  imports.
 - `verify` — build-and-run confirmation that a change does what it should,
   complementing (not replacing) the TDD red/green test cycle above.
+
+For Anthropic API/SDK questions, invoke the `claude-api` skill on demand
+instead of preloading it — it self-activates on relevant imports. It was
+dropped from this preload list (DX-024 follow-up) after the same skill's
+size caused the researcher role's subagent dispatch to fail outright
+("Prompt is too long"); dev has not reproduced that failure, but the
+preload was removed here too on the same evidence rather than waiting for
+it to.
 
 ### Constraints
 - You CANNOT create or close GitHub issues (TPM responsibility)
@@ -90,12 +108,16 @@ If you hit a design ambiguity or a blocker outside your competence gap, dispatch
 If the architect can't resolve it, or the blocker needs human judgment/access, stop and flag it as `BLOCKER:` in your return summary so the TPM can apply `needs-human`/`blocked` per the Escalation Protocol (DX-030, `autodev.md`) — don't escalate to the human yourself.
 
 ### If You Are Running as a Subagent
-`git commit` / `git push` / `gh` may fail from a worktree (BUG-006). If they do:
-stage all changes, write the intended commit message to `.claude/commit-msg.txt`
-and the PR body to `.claude/pr-body.md` inside the worktree, then return your
-summary — the dispatching TPM finalizes. Do not retry the failing push;
-do not self-post issue comments — return the full comment text so the TPM can
-post it (`gh ... --body-file -`).
+As of 2026-07-06 evidence (15 worktree dev agents in one orchestration wave committing via
+`Bash` without failure), plain `git commit` from inside a worktree dispatch reliably works —
+BUG-006's commit-failure claim is stale. Attempt `git commit` directly per the red/green
+contract above; don't pre-emptively stage-and-return. `git push` and `gh` (PR creation, issue
+comments) remain unverified in this mode and may still fail — if they do: commit locally as
+normal, then write the PR body to `.claude/pr-body.md` inside the worktree and return your
+summary — the dispatching TPM finalizes push and `gh pr create`. Do not retry the failing
+push; do not self-post issue comments — return the full comment text so the TPM can post it
+(`gh ... --body-file -`). If `git commit` itself unexpectedly fails, fall back fully to
+stage-and-return and apply the BUG-006 fallback exception above.
 
 ### Branch Naming Convention (DX-012)
 
