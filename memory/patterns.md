@@ -204,6 +204,25 @@ switching branches/worktrees in detached-HEAD state is easy to strand. Pop or
 apply the stash before the next switch; never leave a dispatch with a dirty
 stash.
 
+## maxTurns is a hard stop, not a graceful exit (DX-029)
+
+**Platform-level limitation, not prompt-enforceable.** DX-029 added `maxTurns` to
+every agent's frontmatter (and, per the DX-029 review, `templates/sme.md`) as a
+runaway ceiling. AC3 of that ticket asked for graceful behavior on limit reached
+("summary + exit, not hard kill"). Verified against the live Claude Code
+subagent frontmatter reference (see `memory/reviews/pr-101/DX-029.md`): the
+documented semantics are "Maximum number of agentic turns before the subagent
+stops" — a stop, full stop. There is no prompt-level hook that fires before the
+cutoff to let an agent emit "what was accomplished and what remains"; the
+harness owns the cutoff and the agent gets no final turn to summarize.
+
+**Disposition:** treat AC3 as waived at the platform level, not deferred as an
+implementation gap. Keep setting `maxTurns` everywhere (including
+TPM-generated SME agents) as a ceiling against insanity loops — it still does
+that job — but don't design future work around an assumed graceful-exit
+callback that the platform doesn't expose. If Claude Code ever adds a
+pre-cutoff hook, revisit this note.
+
 ## Git/GitHub operational lore (harvested from catalyst-build)
 
 **`mergeable` flips to UNKNOWN after each merge.** GitHub recomputes PR
