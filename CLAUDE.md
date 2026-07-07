@@ -131,6 +131,14 @@ Agent memory lives in `memory/` within the repo — never in `~/.claude/` or out
 
 The guard rails: `maxTurns` (DX-029) provides a hard ceiling, but agents should self-regulate well before hitting it.
 
+### Chfirm (check + confirm)
+
+**Chfirm** *(v., operator coinage)*: a deliberate double-check performed as engineering practice, not out of doubt. When an agent (or a human) reports success, chfirming means independently verifying the claim before building on it — run the command yourself, read the diff, hit the endpoint, check the paper trail.
+
+Apply it at trust boundaries: before merging a subagent's work, before closing a ticket on a claimed fix, before a state-changing operation that rests on someone else's evidence, and especially when a report says "done" faster than expected. The verifier should not be the author — a session grading its own homework is not a chfirm. Exemplar: the 2026-07-06 podman claim (moat fork reported the hard floor holding; a second session rebuilt the images and reran the check independently before it was accepted — see #95).
+
+Chfirming a true claim costs minutes; trusting a false one costs the audit trail.
+
 ## Development Workflow
 
 This repo develops the framework itself. To test changes:
