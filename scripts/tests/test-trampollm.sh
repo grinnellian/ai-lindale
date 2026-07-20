@@ -39,6 +39,9 @@ n=$(cat "$STUB_DIR/counter" 2>/dev/null || echo 0); n=$((n+1))
 printf '%s\n' "$n" > "$STUB_DIR/counter"
 printf '%s\n' "$*" >> "$STUB_DIR/calls.log"
 printf '%s\n' "---END-CALL---" >> "$STUB_DIR/calls.log"
+if [ -f "$STUB_DIR/response_${n}.stderr" ]; then
+  cat "$STUB_DIR/response_${n}.stderr" >&2
+fi
 cat "$STUB_DIR/response_${n}.json" 2>/dev/null
 exit "$(cat "$STUB_DIR/response_${n}.exit" 2>/dev/null || echo 0)"
 STUB
@@ -84,6 +87,13 @@ fixture_error() {
     '{result: $result, session_id: "sess-test", total_cost_usd: $cost, is_error: true, subtype: "success", terminal_reason: "api_error", num_turns: 1}' \
     >"$STUB_DIR/response_${n}.json"
   printf '%s\n' "$exit_code" >"$STUB_DIR/response_${n}.exit"
+}
+
+# fixture_stderr <n> <text> — the stub claude will emit <text> on stderr
+# for call N (in addition to whatever fixture_ok/fixture_error set up).
+fixture_stderr() {
+  local n="$1" text="$2"
+  printf '%s\n' "$text" >"$STUB_DIR/response_${n}.stderr"
 }
 
 # --- Assertions ---
@@ -186,6 +196,25 @@ run_trampollm() {
   set -e
 }
 
+# run_trampollm_no_gh [args...] — like run_trampollm, but PATH contains ONLY
+# a bin/ dir with claude (no gh stub, no fallback to the real system PATH),
+# so `command -v gh` is guaranteed to fail deterministically and — even if
+# the guard were buggy — no real `gh` binary could ever be reached. Sets $rc.
+run_trampollm_no_gh() {
+  local nogh_bin="$PROJECT/nogh-bin"
+  mkdir -p "$nogh_bin"
+  cp "$PROJECT/bin/claude" "$nogh_bin/claude"
+  # jq is a real dependency (require_jq), so copy the real binary in --
+  # deliberately NOT adding its directory to PATH, since that directory
+  # may also contain a real `gh` (defeating the point of this harness).
+  cp -L "$(command -v jq)" "$nogh_bin/jq"
+  set +e
+  PATH="$nogh_bin" TRAMPOLLM_BACKOFF_BASE=0 \
+    bash "$TRAMPOLLM" "$@" --run-id test-run >"$PROJECT/stdout.log" 2>"$PROJECT/stderr.log"
+  rc=$?
+  set -e
+}
+
 RUN_DIR="memory/trampoline/test-run"
 
 # ===========================================================================
@@ -277,6 +306,46 @@ test_hash_differs_on_next_step_change() {
 }
 
 # ===========================================================================
+# Phase 1b — CLI arg-parser safety (value-less trailing flags)
+# ===========================================================================
+
+# Every value-taking flag trampollm.sh accepts. -h/--help takes no value and
+# is deliberately excluded.
+VALUE_TAKING_FLAGS="--prompt --agent --max-bounces --max-turns --max-budget-usd --max-cost-usd --retries --ticket --run-id --model"
+
+# test_arg_parser_valueless_trailing_flag_exits_1 — a value-less flag as the
+# LAST argument (e.g. `trampollm.sh --prompt`) must fail fast with exit 1 and
+# a non-empty stderr message, never hang. Reproduces the architect's repro
+# for every value-taking flag, not just --prompt. Wrapped in `timeout` so a
+# regression fails fast in CI instead of hanging the suite.
+test_arg_parser_valueless_trailing_flag_exits_1() {
+  setup_project
+  local flag frc failed=0
+  for flag in $VALUE_TAKING_FLAGS; do
+    set +e
+    PATH="$PROJECT/bin:$PATH" TRAMPOLLM_BACKOFF_BASE=0 \
+      timeout 5 bash "$TRAMPOLLM" "$flag" >"$PROJECT/stdout.log" 2>"$PROJECT/stderr.log"
+    frc=$?
+    set -e
+    if [ "$frc" -eq 124 ]; then
+      echo "    flag $flag: timed out under timeout(1) -- hang detected"
+      failed=1
+      continue
+    fi
+    if [ "$frc" -ne 1 ]; then
+      echo "    flag $flag: expected exit 1, got $frc"
+      failed=1
+      continue
+    fi
+    if [ ! -s "$PROJECT/stderr.log" ]; then
+      echo "    flag $flag: expected non-empty stderr, got none"
+      failed=1
+    fi
+  done
+  [ "$failed" -eq 0 ]
+}
+
+# ===========================================================================
 # Phase 2 — single bounce & the is_error gotcha
 # ===========================================================================
 
@@ -306,12 +375,25 @@ test_is_error_gates_before_result() {
 test_is_error_gotcha_ignores_subtype_success() {
   setup_project
   # exit 1, is_error:true, but subtype stays "success" — the FEAT-017 gotcha.
+  # --retries 0 = zero retries after the initial attempt = 1 total dispatch.
   fixture_error 1 "misleading prose" 1 0
-  run_trampollm --prompt "do the thing" --retries 1
+  run_trampollm --prompt "do the thing" --retries 0
   assert_eq 1 "$rc" "exit code" &&
   assert_file_exists "$RUN_DIR/TRIPPED.md" &&
   assert_file_contains "$RUN_DIR/TRIPPED.md" "rail: error" &&
   assert_call_count "$STUB_DIR/calls.log" 1
+}
+
+test_stderr_captured_to_run_dir_not_discarded() {
+  setup_project
+  fixture_ok 1 "work done.
+
+$(baton_block DONE final)" 0.01
+  fixture_stderr 1 "diagnostic breadcrumb: warming cache, retrying internal fetch"
+  run_trampollm --prompt "do the thing"
+  assert_eq 0 "$rc" "exit code" &&
+  assert_file_exists "$RUN_DIR/001-stderr.log" &&
+  assert_file_contains "$RUN_DIR/001-stderr.log" "diagnostic breadcrumb: warming cache, retrying internal fetch"
 }
 
 # ===========================================================================
@@ -438,6 +520,28 @@ $(baton_block CONTINUE same-step)" 0.01
   assert_file_contains "$RUN_DIR/TRIPPED.md" "rail: loop-detected"
 }
 
+test_identical_baton_corrective_reprompt_then_recovers() {
+  setup_project
+  fixture_ok 1 "bounce one.
+
+$(baton_block CONTINUE same-step)" 0.01
+  fixture_ok 2 "bounce two, identical.
+
+$(baton_block CONTINUE same-step)" 0.01
+  fixture_ok 3 "bounce three, changed after correction.
+
+$(baton_block CONTINUE different-step)" 0.01
+  fixture_ok 4 "bounce four, done.
+
+$(baton_block DONE final-step)" 0.01
+  run_trampollm --prompt "start"
+  assert_eq 0 "$rc" "exit code" &&
+  assert_call_count "$STUB_DIR/calls.log" 4 &&
+  assert_call_contains "$STUB_DIR/calls.log" 3 "Identical baton detected" &&
+  assert_file_exists "$RUN_DIR/004-baton.md" &&
+  assert_file_not_exists "$RUN_DIR/TRIPPED.md"
+}
+
 test_error_retry_with_backoff_then_success() {
   setup_project
   fixture_error 1 "transient error" 1 0
@@ -452,13 +556,23 @@ $(baton_block DONE recovered)" 0.01
 
 test_error_retries_exhausted_trips() {
   setup_project
+  # --retries N means N retries AFTER the initial attempt -> N+1 total
+  # dispatches. --retries 3 => 1 initial + 3 retries = 4 total calls.
   fixture_error 1 "transient error" 1 0
   fixture_error 2 "transient error" 1 0
   fixture_error 3 "transient error" 1 0
+  fixture_error 4 "transient error" 1 0
   run_trampollm --prompt "start" --retries 3
   assert_eq 1 "$rc" "exit code" &&
-  assert_call_count "$STUB_DIR/calls.log" 3 &&
+  assert_call_count "$STUB_DIR/calls.log" 4 &&
   assert_file_contains "$RUN_DIR/TRIPPED.md" "rail: error"
+}
+
+test_help_text_describes_retries_as_after_initial_attempt() {
+  local out
+  out="$(bash "$TRAMPOLLM" --help)"
+  printf '%s' "$out" | grep -qi "retries" || { echo "    --help missing 'retries': $out"; return 1; }
+  printf '%s' "$out" | grep -qi "after the initial attempt" || { echo "    --help does not clarify N retries are AFTER the initial attempt: $out"; return 1; }
 }
 
 test_malformed_baton_one_correction_then_trip() {
@@ -469,6 +583,22 @@ test_malformed_baton_one_correction_then_trip() {
   assert_eq 1 "$rc" "exit code" &&
   assert_call_contains "$STUB_DIR/calls.log" 2 "no valid BATON v1 block" &&
   assert_file_contains "$RUN_DIR/TRIPPED.md" "rail: malformed-baton"
+}
+
+test_malformed_baton_corrective_reprompt_then_recovers() {
+  setup_project
+  fixture_ok 1 "no baton block in this reply at all." 0.01
+  fixture_ok 2 "recovered, done.
+
+$(baton_block DONE recovered-after-correction)" 0.01
+  run_trampollm --prompt "start"
+  assert_eq 0 "$rc" "exit code" &&
+  assert_call_count "$STUB_DIR/calls.log" 2 &&
+  assert_call_contains "$STUB_DIR/calls.log" 2 "no valid BATON v1 block" &&
+  assert_file_not_exists "$RUN_DIR/001-baton.md" &&
+  assert_file_exists "$RUN_DIR/002-baton.md" &&
+  assert_file_contains "$RUN_DIR/002-baton.md" "status: DONE" &&
+  assert_file_not_exists "$RUN_DIR/TRIPPED.md"
 }
 
 test_status_park_trips() {
@@ -539,6 +669,17 @@ $(baton_block CONTINUE step1 '<same>' '')" 0.01
   assert_file_not_exists "$STUB_DIR/gh.log"
 }
 
+test_escalation_degrades_gracefully_without_gh() {
+  setup_project
+  fixture_ok 1 "bounce one.
+
+$(baton_block CONTINUE step1)" 0.01
+  run_trampollm_no_gh --prompt "start" --max-bounces 1 --ticket 108
+  assert_eq 3 "$rc" "exit code" &&
+  assert_file_exists "$RUN_DIR/TRIPPED.md" &&
+  assert_file_contains "$PROJECT/stderr.log" "gh not found; skipping escalation"
+}
+
 # --- Run all tests ---
 
 echo "=== FEAT-018 trampollm Tests ==="
@@ -552,10 +693,14 @@ run_test "baton_field/baton_status whitespace-tolerant" test_baton_field_whitesp
 run_test "hash_baton stable across breadcrumbs-only diff" test_normalize_hash_stable_across_breadcrumbs
 run_test "hash_baton differs on next-step change" test_hash_differs_on_next_step_change
 echo ""
+echo "--- phase 1b: CLI arg-parser safety ---"
+run_test "value-less trailing flag exits 1 (never hangs), for every value-taking flag" test_arg_parser_valueless_trailing_flag_exits_1
+echo ""
 echo "--- phase 2: single bounce & is_error gotcha ---"
 run_test "clean single bounce DONE -> exit 0, writes 001-baton.md" test_clean_single_bounce_done
 run_test "is_error gates before .result is dispatched" test_is_error_gates_before_result
 run_test "gotcha: is_error true + subtype success still trips as error" test_is_error_gotcha_ignores_subtype_success
+run_test "per-bounce stderr captured to run dir, not discarded" test_stderr_captured_to_run_dir_not_discarded
 echo ""
 echo "--- phase 3: multi-bounce loop ---"
 run_test "sentinel termination: 3 CONTINUE then DONE -> exit 0" test_sentinel_termination_three_continue_then_done
@@ -567,9 +712,12 @@ echo "--- phase 4: rails ---"
 run_test "--max-bounces trip -> exit 3" test_max_bounces_trip
 run_test "cumulative cost trip checked before dispatch -> exit 5" test_cumulative_cost_trip_before_dispatch
 run_test "identical-baton loop detection -> exit 4" test_identical_baton_loop_detection
+run_test "identical-baton corrective re-prompt then recovers -> exit 0" test_identical_baton_corrective_reprompt_then_recovers
 run_test "error retry with backoff then success -> exit 0" test_error_retry_with_backoff_then_success
-run_test "error retries exhausted -> exit 1" test_error_retries_exhausted_trips
+run_test "error retries exhausted (N retries after initial = N+1 total) -> exit 1" test_error_retries_exhausted_trips
+run_test "--help text documents retries-after-initial-attempt semantics" test_help_text_describes_retries_as_after_initial_attempt
 run_test "malformed baton: one correction then trip -> exit 1" test_malformed_baton_one_correction_then_trip
+run_test "malformed baton: corrective re-prompt then recovers -> exit 0" test_malformed_baton_corrective_reprompt_then_recovers
 run_test "status PARK trips -> exit 2" test_status_park_trips
 run_test "status ESCALATE trips -> exit 2" test_status_escalate_trips
 echo ""
@@ -577,6 +725,7 @@ echo "--- phase 5: trip observability & escalation ---"
 run_test "TRIPPED.md contains rail/bounce/cost/last-baton" test_tripped_md_content
 run_test "escalation posts gh comment + needs-human label when ticket set" test_escalation_with_ticket
 run_test "no gh calls when ticket unset" test_no_escalation_without_ticket
+run_test "escalation degrades gracefully (warns, no crash) when gh is absent" test_escalation_degrades_gracefully_without_gh
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ] || exit 1
