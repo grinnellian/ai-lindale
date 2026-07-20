@@ -32,9 +32,13 @@ setup_project() {
   cat >bin/claude <<'STUB'
 #!/usr/bin/env bash
 # stub claude — emits canned JSON per invocation, logs args, zero API spend.
+# Args (notably --prompt) may contain embedded newlines, so each call's args
+# are followed by a delimiter line -- callers must split calls.log on it
+# rather than assuming "one call == one line".
 n=$(cat "$STUB_DIR/counter" 2>/dev/null || echo 0); n=$((n+1))
 printf '%s\n' "$n" > "$STUB_DIR/counter"
 printf '%s\n' "$*" >> "$STUB_DIR/calls.log"
+printf '%s\n' "---END-CALL---" >> "$STUB_DIR/calls.log"
 cat "$STUB_DIR/response_${n}.json" 2>/dev/null
 exit "$(cat "$STUB_DIR/response_${n}.exit" 2>/dev/null || echo 0)"
 STUB
@@ -60,7 +64,7 @@ trap teardown EXIT
 
 # baton_block <status> <next_step> [next_agent] [ticket] [breadcrumbs]
 baton_block() {
-  local status="$1" next_step="$2" next_agent="${3:-<same>}" ticket="${4:-#108}" breadcrumbs="${5:-none}"
+  local status="$1" next_step="$2" next_agent="${3:-<same>}" ticket="${4-#108}" breadcrumbs="${5:-none}"
   printf -- '--- BATON v1 ---\nstatus: %s\ngoal: relay test goal\nticket: %s\nnext-agent: %s\ndone-criteria: counter reaches threshold\nstate: in progress\nnext-step: %s\nbreadcrumbs: %s\n--- END BATON ---' \
     "$status" "$ticket" "$next_agent" "$next_step" "$breadcrumbs"
 }
@@ -115,7 +119,7 @@ assert_file_not_exists() {
 
 assert_file_contains() {
   local path="$1" pattern="$2"
-  if grep -qF "$pattern" "$path" 2>/dev/null; then
+  if grep -qF -- "$pattern" "$path" 2>/dev/null; then
     return 0
   else
     echo "    File $path does not contain: $pattern"
@@ -123,24 +127,35 @@ assert_file_contains() {
   fi
 }
 
-assert_line_contains() {
+# calls.log entries are delimited by "---END-CALL---" (args can contain
+# embedded newlines, e.g. --prompt text, so raw line numbers don't map to
+# call numbers).
+
+# call_block <path> <n> — prints the raw args text for call N.
+call_block() {
+  local path="$1" n="$2"
+  awk -v RS='---END-CALL---\n' -v n="$n" 'NR==n { print; exit }' "$path" 2>/dev/null
+}
+
+assert_call_contains() {
   local path="$1" n="$2" pattern="$3"
-  local line
-  line="$(sed -n "${n}p" "$path" 2>/dev/null || true)"
-  if printf '%s' "$line" | grep -qF "$pattern"; then
+  local block
+  block="$(call_block "$path" "$n")"
+  if printf '%s' "$block" | grep -qF -- "$pattern"; then
     return 0
   else
-    echo "    Line $n of $path does not contain: $pattern"
-    echo "    Actual line $n: $line"
+    echo "    Call $n in $path does not contain: $pattern"
+    echo "    Actual call $n: $block"
     return 1
   fi
 }
 
-assert_line_count() {
+assert_call_count() {
   local path="$1" expected="$2"
   local actual
-  actual="$(wc -l <"$path" 2>/dev/null | tr -d ' ')"
-  assert_eq "$expected" "$actual" "line count of $path"
+  actual="$(grep -c '^---END-CALL---$' "$path" 2>/dev/null || true)"
+  actual="${actual:-0}"
+  assert_eq "$expected" "$actual" "call count of $path"
 }
 
 run_test() {
@@ -296,7 +311,7 @@ test_is_error_gotcha_ignores_subtype_success() {
   assert_eq 1 "$rc" "exit code" &&
   assert_file_exists "$RUN_DIR/TRIPPED.md" &&
   assert_file_contains "$RUN_DIR/TRIPPED.md" "rail: error" &&
-  assert_line_count "$STUB_DIR/calls.log" 1
+  assert_call_count "$STUB_DIR/calls.log" 1
 }
 
 # ===========================================================================
@@ -335,8 +350,8 @@ $(baton_block CONTINUE step1 architect)" 0.01
 $(baton_block DONE step2)" 0.01
   run_trampollm --prompt "start" --agent dev
   assert_eq 0 "$rc" "exit code" &&
-  assert_line_contains "$STUB_DIR/calls.log" 1 "--agent dev" &&
-  assert_line_contains "$STUB_DIR/calls.log" 2 "--agent architect"
+  assert_call_contains "$STUB_DIR/calls.log" 1 "--agent dev" &&
+  assert_call_contains "$STUB_DIR/calls.log" 2 "--agent architect"
 }
 
 test_baton_audit_trail_verbatim() {
@@ -363,10 +378,10 @@ $(baton_block CONTINUE step1)" 0.01
 $(baton_block DONE step2)" 0.01
   run_trampollm --prompt "start" --max-turns 7 --max-budget-usd 0.5
   assert_eq 0 "$rc" "exit code" &&
-  assert_line_contains "$STUB_DIR/calls.log" 1 "--max-turns 7" &&
-  assert_line_contains "$STUB_DIR/calls.log" 1 "--max-budget-usd 0.5" &&
-  assert_line_contains "$STUB_DIR/calls.log" 2 "--max-turns 7" &&
-  assert_line_contains "$STUB_DIR/calls.log" 2 "--max-budget-usd 0.5"
+  assert_call_contains "$STUB_DIR/calls.log" 1 "--max-turns 7" &&
+  assert_call_contains "$STUB_DIR/calls.log" 1 "--max-budget-usd 0.5" &&
+  assert_call_contains "$STUB_DIR/calls.log" 2 "--max-turns 7" &&
+  assert_call_contains "$STUB_DIR/calls.log" 2 "--max-budget-usd 0.5"
 }
 
 # ===========================================================================
@@ -402,7 +417,7 @@ $(baton_block CONTINUE step3)" 0.015
   assert_eq 5 "$rc" "exit code" &&
   assert_file_exists "$RUN_DIR/TRIPPED.md" &&
   assert_file_contains "$RUN_DIR/TRIPPED.md" "rail: max-cost-usd" &&
-  assert_line_count "$STUB_DIR/calls.log" 2
+  assert_call_count "$STUB_DIR/calls.log" 2
 }
 
 test_identical_baton_loop_detection() {
@@ -418,7 +433,7 @@ $(baton_block CONTINUE same-step)" 0.01
 $(baton_block CONTINUE same-step)" 0.01
   run_trampollm --prompt "start"
   assert_eq 4 "$rc" "exit code" &&
-  assert_line_contains "$STUB_DIR/calls.log" 3 "Identical baton detected" &&
+  assert_call_contains "$STUB_DIR/calls.log" 3 "Identical baton detected" &&
   assert_file_exists "$RUN_DIR/TRIPPED.md" &&
   assert_file_contains "$RUN_DIR/TRIPPED.md" "rail: loop-detected"
 }
@@ -432,7 +447,7 @@ test_error_retry_with_backoff_then_success() {
 $(baton_block DONE recovered)" 0.01
   run_trampollm --prompt "start" --retries 3
   assert_eq 0 "$rc" "exit code" &&
-  assert_line_count "$STUB_DIR/calls.log" 3
+  assert_call_count "$STUB_DIR/calls.log" 3
 }
 
 test_error_retries_exhausted_trips() {
@@ -442,7 +457,7 @@ test_error_retries_exhausted_trips() {
   fixture_error 3 "transient error" 1 0
   run_trampollm --prompt "start" --retries 3
   assert_eq 1 "$rc" "exit code" &&
-  assert_line_count "$STUB_DIR/calls.log" 3 &&
+  assert_call_count "$STUB_DIR/calls.log" 3 &&
   assert_file_contains "$RUN_DIR/TRIPPED.md" "rail: error"
 }
 
@@ -452,7 +467,7 @@ test_malformed_baton_one_correction_then_trip() {
   fixture_ok 2 "still no baton block in this reply either." 0.01
   run_trampollm --prompt "start"
   assert_eq 1 "$rc" "exit code" &&
-  assert_line_contains "$STUB_DIR/calls.log" 2 "no valid BATON v1 block" &&
+  assert_call_contains "$STUB_DIR/calls.log" 2 "no valid BATON v1 block" &&
   assert_file_contains "$RUN_DIR/TRIPPED.md" "rail: malformed-baton"
 }
 
@@ -513,9 +528,12 @@ $(baton_block CONTINUE step1)" 0.01
 
 test_no_escalation_without_ticket() {
   setup_project
+  # baton_block's ticket arg is set empty here — otherwise the baton's own
+  # "ticket:" field would be picked up by the "baton can supply it" rule and
+  # this would no longer be testing the no-ticket path.
   fixture_ok 1 "bounce one.
 
-$(baton_block CONTINUE step1)" 0.01
+$(baton_block CONTINUE step1 '<same>' '')" 0.01
   run_trampollm --prompt "start" --max-bounces 1
   assert_eq 3 "$rc" "exit code" &&
   assert_file_not_exists "$STUB_DIR/gh.log"
