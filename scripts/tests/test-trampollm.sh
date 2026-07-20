@@ -196,20 +196,19 @@ run_trampollm() {
   set -e
 }
 
-# run_trampollm_no_gh [args...] — like run_trampollm, but PATH contains ONLY
-# a bin/ dir with claude (no gh stub, no fallback to the real system PATH),
-# so `command -v gh` is guaranteed to fail deterministically and — even if
-# the guard were buggy — no real `gh` binary could ever be reached. Sets $rc.
+# run_trampollm_no_gh [args...] — like run_trampollm, but PATH is the stub
+# claude dir plus only bare-system dirs (/usr/bin, /bin, /usr/sbin, /sbin --
+# where `gh` is never installed; it lives under a package-manager prefix
+# like /opt/homebrew/bin or /usr/local/bin, both deliberately excluded).
+# No gh stub is created, so `command -v gh` is guaranteed to fail
+# deterministically, and even if the guard under test were buggy, no real
+# `gh` binary could ever be reached via this PATH. Sets $rc.
 run_trampollm_no_gh() {
   local nogh_bin="$PROJECT/nogh-bin"
   mkdir -p "$nogh_bin"
   cp "$PROJECT/bin/claude" "$nogh_bin/claude"
-  # jq is a real dependency (require_jq), so copy the real binary in --
-  # deliberately NOT adding its directory to PATH, since that directory
-  # may also contain a real `gh` (defeating the point of this harness).
-  cp -L "$(command -v jq)" "$nogh_bin/jq"
   set +e
-  PATH="$nogh_bin" TRAMPOLLM_BACKOFF_BASE=0 \
+  PATH="$nogh_bin:/usr/bin:/bin:/usr/sbin:/sbin" TRAMPOLLM_BACKOFF_BASE=0 \
     bash "$TRAMPOLLM" "$@" --run-id test-run >"$PROJECT/stdout.log" 2>"$PROJECT/stderr.log"
   rc=$?
   set -e

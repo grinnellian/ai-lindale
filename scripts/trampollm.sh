@@ -132,7 +132,7 @@ build_prompt() {
 # Reads MAX_TURNS / MAX_BUDGET_USD / MODEL from the enclosing script's
 # (non-local) variables set by main()'s argument parsing.
 run_claude() {
-  local prompt="$1" agent="$2" out_json="$3"
+  local prompt="$1" agent="$2" out_json="$3" err_log="$4"
   local args=(-p "$prompt" --output-format json --agent "$agent" --max-turns "${MAX_TURNS:-$DEFAULT_MAX_TURNS}")
   if [ -n "${MAX_BUDGET_USD:-}" ]; then
     args+=(--max-budget-usd "$MAX_BUDGET_USD")
@@ -140,7 +140,7 @@ run_claude() {
   if [ -n "${MODEL:-}" ]; then
     args+=(--model "$MODEL")
   fi
-  claude "${args[@]}" >"$out_json" 2>/dev/null
+  claude "${args[@]}" >"$out_json" 2>"$err_log"
   return $?
 }
 
@@ -198,6 +198,10 @@ escalate_ticket() {
   if [ -z "$ticket" ]; then
     return 0
   fi
+  if ! command -v gh >/dev/null 2>&1; then
+    echo "trampollm: gh not found; skipping escalation (TRIPPED.md was still written)" >&2
+    return 0
+  fi
   local num="${ticket#\#}"
   gh issue comment "$num" --body-file "$tripped_path" >/dev/null
   gh issue edit "$num" --add-label needs-human >/dev/null
@@ -226,11 +230,29 @@ Options:
   --max-turns <N>           Native pass-through per call (default: 50)
   --max-budget-usd <X>      Native pass-through per call (unset by default)
   --max-cost-usd <X>        Cumulative cap across bounces (default: 10.00) -> exit 5
-  --retries <N>             Error retries per bounce (default: 3)
+  --retries <N>             Retries after the initial attempt (default: 3)
+                            -- N+1 total dispatches per bounce on failure
   --ticket <#NNN>           Seeds ticket; trips post a comment + needs-human label
   --run-id <id>             Overridable run id (default: timestamp-pid)
   --model <model>           Native pass-through when set
+
+Every option above requires a value; a trailing flag with no value
+(e.g. "trampollm.sh --prompt") is a usage error -> exit 1.
 EOF
+}
+
+# require_flag_value <flag> <remaining_arg_count> — exits 1 with a usage
+# error if <remaining_arg_count> is less than 2, i.e. <flag> is the last
+# positional and has no following value. Without this guard, "${2:-}" masks
+# the missing value under `set -u` and a lone trailing flag spins the
+# option-parsing loop forever ($# never decrements).
+require_flag_value() {
+  local flag="$1" remaining="$2"
+  if [ "$remaining" -lt 2 ]; then
+    echo "trampollm: missing value for $flag" >&2
+    usage >&2
+    exit 1
+  fi
 }
 
 main() {
@@ -250,16 +272,16 @@ main() {
 
   while [ $# -gt 0 ]; do
     case "$1" in
-      --prompt) PROMPT="${2:-}"; shift 2 ;;
-      --agent) AGENT="${2:-}"; shift 2 ;;
-      --max-bounces) MAX_BOUNCES="${2:-}"; shift 2 ;;
-      --max-turns) MAX_TURNS="${2:-}"; shift 2 ;;
-      --max-budget-usd) MAX_BUDGET_USD="${2:-}"; shift 2 ;;
-      --max-cost-usd) MAX_COST_USD="${2:-}"; shift 2 ;;
-      --retries) RETRIES="${2:-}"; shift 2 ;;
-      --ticket) TICKET="${2:-}"; shift 2 ;;
-      --run-id) RUN_ID="${2:-}"; shift 2 ;;
-      --model) MODEL="${2:-}"; shift 2 ;;
+      --prompt) require_flag_value "$1" "$#"; PROMPT="$2"; shift 2 ;;
+      --agent) require_flag_value "$1" "$#"; AGENT="$2"; shift 2 ;;
+      --max-bounces) require_flag_value "$1" "$#"; MAX_BOUNCES="$2"; shift 2 ;;
+      --max-turns) require_flag_value "$1" "$#"; MAX_TURNS="$2"; shift 2 ;;
+      --max-budget-usd) require_flag_value "$1" "$#"; MAX_BUDGET_USD="$2"; shift 2 ;;
+      --max-cost-usd) require_flag_value "$1" "$#"; MAX_COST_USD="$2"; shift 2 ;;
+      --retries) require_flag_value "$1" "$#"; RETRIES="$2"; shift 2 ;;
+      --ticket) require_flag_value "$1" "$#"; TICKET="$2"; shift 2 ;;
+      --run-id) require_flag_value "$1" "$#"; RUN_ID="$2"; shift 2 ;;
+      --model) require_flag_value "$1" "$#"; MODEL="$2"; shift 2 ;;
       -h|--help) usage; exit 0 ;;
       *) echo "trampollm: unknown argument: $1" >&2; usage >&2; exit 1 ;;
     esac
@@ -299,17 +321,22 @@ main() {
 
     bounce=$((bounce + 1))
     local out_json="$run_dir/$(printf '%03d' "$bounce")-response.json"
+    local err_log="$run_dir/$(printf '%03d' "$bounce")-stderr.log"
 
     local attempt=0
     local rc
     while :; do
-      run_claude "$prompt" "$AGENT" "$out_json"
+      run_claude "$prompt" "$AGENT" "$out_json" "$err_log"
       rc=$?
       if ! is_bad_response "$rc" "$out_json"; then
         break
       fi
       attempt=$((attempt + 1))
-      if [ "$attempt" -ge "$RETRIES" ]; then
+      # --retries N means N retries AFTER the initial attempt, i.e. N+1
+      # total dispatches per bounce on continuous failure: attempt only
+      # trips once it exceeds RETRIES (strictly greater than), not on
+      # reaching it.
+      if [ "$attempt" -gt "$RETRIES" ]; then
         write_tripped "$run_dir" "error" "$bounce" "$cum_cost" "$last_good_block"
         escalate_ticket "$TICKET" "$run_dir/TRIPPED.md"
         exit 1
