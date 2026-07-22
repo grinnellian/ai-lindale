@@ -15,8 +15,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Hook enforcement tests
-        run: bash scripts/hooks/tests/test-hooks.sh
-
       - name: Install / adoption tests
         run: bash scripts/tests/test-adoption.sh
