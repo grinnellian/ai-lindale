@@ -229,3 +229,14 @@ doesn't re-litigate them:
 - **juno team-config.yml**: real-world exemplar of a no-CI project (prose
   toolchain, Knowledge/ instead of memory/) — reference for adoption-guide
   examples.
+
+## Worktree branch collision on review-fix cycles (FEAT-018 run, 2026-07-20)
+
+When a second dev subagent is dispatched to fix review findings on a branch
+the first dev created, the branch is still checked out in the first agent's
+worktree (`.claude/worktrees/agent-<id>/`), so `git checkout <branch>` fails
+and sandboxing blocks editing the other agent's worktree. Working pattern
+(discovered by the fix-cycle dev on PR #109): create a local tracking branch
+(`git checkout -b <name> origin/<branch>`), do the work there, and push
+`HEAD:<branch>` — the PR updates normally, no force-push needed. Candidate
+for dev.md's subagent-fallback section; related: BUG-006 (#77), DX-034 (#80).
