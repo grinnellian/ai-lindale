@@ -135,13 +135,15 @@ if [ "$SELF_HOST" = false ]; then
     link_managed "$src" "$dest"
   done
 
-  # Symlink core commands
-  for cmd in architect tpm dev; do
-    src="../../${FRAMEWORK_DIR}/.claude/commands/${cmd}.md"
-    dest=".claude/commands/${cmd}.md"
-    if [ -f "$FRAMEWORK_DIR/.claude/commands/${cmd}.md" ]; then
-      link_managed "$src" "$dest"
-    fi
+  # Symlink every framework command (BUG-008: glob instead of a hardcoded
+  # command list, so commands like /autodev propagate downstream without
+  # another install.sh edit).
+  for cmd_file in "$FRAMEWORK_DIR"/.claude/commands/*.md; do
+    [ -f "$cmd_file" ] || continue
+    cmd_basename=$(basename "$cmd_file")
+    src="../../${FRAMEWORK_DIR}/.claude/commands/${cmd_basename}"
+    dest=".claude/commands/${cmd_basename}"
+    link_managed "$src" "$dest"
   done
 
   echo ""

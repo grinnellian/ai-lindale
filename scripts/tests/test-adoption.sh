@@ -47,6 +47,13 @@ add_extra_agents() {
   echo "# Audit-repo agent" > "$FRAMEWORK/.claude/agents/audit-repo.md"
 }
 
+# Add the real autodev command (BUG-008) into the fake framework submodule —
+# it already exists upstream but setup_project's hardcoded architect/tpm/dev
+# copy loop above never picks it up.
+add_autodev_command() {
+  cp "$REPO_ROOT/.claude/commands/autodev.md" "$FRAMEWORK/.claude/commands/autodev.md"
+}
+
 teardown() {
   if [ -n "$TMPDIR_BASE" ] && [ -d "$TMPDIR_BASE" ]; then
     rm -rf "$TMPDIR_BASE"
@@ -158,6 +165,27 @@ test_command_symlinks() {
   for cmd in architect tpm dev; do
     assert_symlink ".claude/commands/${cmd}.md" "../../.ai-lindale/.claude/commands/${cmd}.md"
   done
+}
+
+test_command_glob_includes_autodev() {
+  # BUG-008: install.sh must not hardcode the command list — /autodev (and
+  # any future command) must symlink downstream.
+  setup_project
+  add_autodev_command
+  bash "$FRAMEWORK/scripts/install.sh"
+  assert_symlink ".claude/commands/autodev.md" "../../.ai-lindale/.claude/commands/autodev.md"
+}
+
+test_command_glob_preserves_project_owned_collision() {
+  # Mirrors BUG-009's override-safety AC for commands: a project-owned
+  # command at a colliding (non-core) name is skipped, not clobbered.
+  setup_project
+  add_autodev_command
+  setup_with_override ".claude/commands/autodev.md" "# project-owned autodev override"
+  output=$(bash "$FRAMEWORK/scripts/install.sh" 2>&1)
+  assert_file_not_symlink ".claude/commands/autodev.md" &&
+  assert_file_contains ".claude/commands/autodev.md" "# project-owned autodev override" &&
+  echo "$output" | grep -qi "skipped .claude/commands/autodev.md"
 }
 
 test_preserves_project_files() {
@@ -442,6 +470,8 @@ run_test "creates agent symlinks" test_agent_symlinks
 run_test "agent glob includes new (non-hardcoded) agents" test_agent_symlinks_glob_includes_new_agents
 run_test "agent glob preserves project-owned collision" test_agent_glob_preserves_project_owned_collision
 run_test "creates command symlinks" test_command_symlinks
+run_test "command glob includes /autodev (non-hardcoded)" test_command_glob_includes_autodev
+run_test "command glob preserves project-owned collision" test_command_glob_preserves_project_owned_collision
 run_test "preserves project-owned files" test_preserves_project_files
 run_test "creates team-config.yml template" test_creates_team_config_template
 run_test "does not overwrite existing config" test_does_not_overwrite_existing_config
