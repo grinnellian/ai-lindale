@@ -57,6 +57,27 @@ require_jq() {
   return 0
 }
 
+# require_claude — the whole point of the script is dispatching `claude`.
+# Without this pre-flight, a missing/not-on-PATH CLI is indistinguishable
+# from an API failure: run_claude's redirect still succeeds, bash reports
+# "claude: command not found" into the per-bounce stderr log, and the loop
+# burns RETRIES+1 dispatch attempts with backoff before writing a TRIPPED.md
+# whose only clue is "rail: error" and an empty last-baton section.
+require_claude() {
+  if ! command -v claude >/dev/null 2>&1; then
+    echo "trampollm: 'claude' not found on PATH (Claude Code CLI is required)" >&2
+    return 1
+  fi
+  return 0
+}
+
+# log <msg> — operator-facing progress on stderr. stdout stays clean so the
+# script composes into pipelines; an unattended run that prints nothing at
+# all (the prior behaviour) is unauditable while it is still running.
+log() {
+  echo "trampollm: $*" >&2
+}
+
 # parse_baton <text> — prints the block between "--- BATON v1 ---" and
 # "--- END BATON ---" (inclusive). Prints empty string if absent. If the
 # text contains multiple blocks, the LAST one wins.
@@ -171,15 +192,24 @@ is_bad_response() {
 }
 
 # write_baton_file <run_dir> <n> <block> — writes <run_dir>/NNN-baton.md verbatim.
+# A failed write (full disk, read-only mount) is announced rather than
+# swallowed: the baton chain IS the audit trail, so losing a link silently
+# is worse than the run failing loudly.
 write_baton_file() {
   local run_dir="$1" n="$2" block="$3"
-  printf '%s\n' "$block" >"$run_dir/$(printf '%03d' "$n")-baton.md"
+  local path
+  path="$run_dir/$(printf '%03d' "$n")-baton.md"
+  if ! printf '%s\n' "$block" >"$path" 2>/dev/null; then
+    log "WARNING: could not write $path (disk full / read-only?)"
+    return 1
+  fi
+  return 0
 }
 
 # write_tripped <run_dir> <rail> <bounce> <cum_cost> <last_baton>
 write_tripped() {
   local run_dir="$1" rail="$2" bounce="$3" cum_cost="$4" last_baton="$5"
-  {
+  if ! {
     echo "trampollm: TRIPPED"
     echo ""
     echo "rail: $rail"
@@ -188,7 +218,11 @@ write_tripped() {
     echo ""
     echo "--- last good baton (resume by feeding this back in) ---"
     printf '%s\n' "$last_baton"
-  } >"$run_dir/TRIPPED.md"
+  } >"$run_dir/TRIPPED.md" 2>/dev/null; then
+    log "WARNING: could not write $run_dir/TRIPPED.md (disk full / read-only?)"
+    return 1
+  fi
+  return 0
 }
 
 # escalate_ticket <ticket> <tripped_path> — when <ticket> is non-empty, posts
@@ -203,8 +237,63 @@ escalate_ticket() {
     return 0
   fi
   local num="${ticket#\#}"
-  gh issue comment "$num" --body-file "$tripped_path" >/dev/null
-  gh issue edit "$num" --add-label needs-human >/dev/null
+  # Both gh calls' exit codes are checked: escalation IS the page to a human,
+  # so a silent failure (expired auth, rate limit, no `needs-human` label in
+  # the repo, network down) means nobody ever learns the relay tripped. The
+  # trip's own exit code is unaffected -- a failed page must not mask the
+  # rail that fired -- but it is now visible on stderr.
+  if ! gh issue comment "$num" --body-file "$tripped_path" >/dev/null; then
+    log "WARNING: 'gh issue comment $num' failed; nobody was paged. Trip details: $tripped_path"
+  fi
+  if ! gh issue edit "$num" --add-label needs-human >/dev/null; then
+    log "WARNING: 'gh issue edit $num --add-label needs-human' failed (label missing in repo?)"
+  fi
+}
+
+# comment_bounce <ticket> <baton_path> <bounce> — spec item 4's optional
+# per-bounce issue comment, via the same --body-file pattern as escalation.
+# Opt-in through --comment-bounces, and deliberately restricted to a ticket
+# the OPERATOR passed on the CLI (see main()): a ticket adopted out of a
+# baton is model-authored, and one authenticated write per bounce aimed at
+# a model-chosen issue is not something to turn on by default.
+comment_bounce() {
+  local ticket="$1" baton_path="$2" bounce="$3"
+  if [ -z "$ticket" ]; then
+    log "WARNING: --comment-bounces needs --ticket; skipping comment for bounce $bounce"
+    return 0
+  fi
+  if ! command -v gh >/dev/null 2>&1; then
+    log "WARNING: gh not found; skipping per-bounce comment for bounce $bounce"
+    return 0
+  fi
+  if [ ! -f "$baton_path" ]; then
+    return 0
+  fi
+  local num="${ticket#\#}"
+  if ! gh issue comment "$num" --body-file "$baton_path" >/dev/null; then
+    log "WARNING: per-bounce 'gh issue comment $num' failed for bounce $bounce"
+  fi
+}
+
+# accumulate_cost <out_json> — adds this dispatch's .total_cost_usd into the
+# enclosing main()'s cum_cost (dynamic scope, same convention as run_claude).
+#
+# Called for EVERY dispatch, including ones that failed is_bad_response. A
+# bounce that errors after doing work is still a billed run, so summing only
+# the winning attempt let the cumulative rail under-count without bound:
+# observed, two failed attempts billing $3.00 each vanished entirely under a
+# --max-cost-usd 1.00 cap and the run exited 0 believing it had spent $0.01.
+accumulate_cost() {
+  local out_json="$1" c
+  [ -s "$out_json" ] || return 0
+  # Guard the type: a non-numeric or absent total_cost_usd must contribute 0
+  # rather than poison cum_cost into a string and make the awk rail inert.
+  c="$(jq -r 'if (.total_cost_usd | type) == "number" then .total_cost_usd else 0 end' "$out_json" 2>/dev/null)"
+  case "${c:-}" in
+    ''|*[!0-9.eE+-]*) return 0 ;;
+  esac
+  cum_cost="$(awk -v a="$cum_cost" -v b="$c" 'BEGIN { printf "%s", a + b }')"
+  return 0
 }
 
 # backoff_sleep <attempt> — sleep(TRAMPOLLM_BACKOFF_BASE * attempt).
@@ -233,11 +322,14 @@ Options:
   --retries <N>             Retries after the initial attempt (default: 3)
                             -- N+1 total dispatches per bounce on failure
   --ticket <#NNN>           Seeds ticket; trips post a comment + needs-human label
+  --comment-bounces         Also post each bounce's baton as an issue comment
+                            (takes no value; requires --ticket)
   --run-id <id>             Overridable run id (default: timestamp-pid)
   --model <model>           Native pass-through when set
 
-Every option above requires a value; a trailing flag with no value
-(e.g. "trampollm.sh --prompt") is a usage error -> exit 1.
+Every option above except --comment-bounces, -h and --help requires a value;
+a trailing value-taking flag with no value (e.g. "trampollm.sh --prompt") is
+a usage error -> exit 1.
 EOF
 }
 
@@ -292,6 +384,7 @@ validate_nonneg_number() {
 
 main() {
   require_jq || exit 1
+  require_claude || exit 1
 
   local PROMPT=""
   AGENT="$DEFAULT_AGENT"
@@ -301,6 +394,10 @@ main() {
   local MAX_COST_USD="$DEFAULT_MAX_COST_USD"
   local RETRIES="$DEFAULT_RETRIES"
   local TICKET=""
+  # CLI_TICKET is TICKET's operator-supplied subset. TICKET may later be
+  # adopted from a baton (model-authored); CLI_TICKET never is.
+  local CLI_TICKET=""
+  local COMMENT_BOUNCES=false
   local RUN_ID
   RUN_ID="$(date +%Y%m%dT%H%M%S)-$$"
   MODEL=""
@@ -314,7 +411,8 @@ main() {
       --max-budget-usd) require_flag_value "$1" "$#"; validate_nonneg_number "$1" "$2"; MAX_BUDGET_USD="$2"; shift 2 ;;
       --max-cost-usd) require_flag_value "$1" "$#"; validate_nonneg_number "$1" "$2"; MAX_COST_USD="$2"; shift 2 ;;
       --retries) require_flag_value "$1" "$#"; validate_nonneg_int "$1" "$2"; RETRIES="$2"; shift 2 ;;
-      --ticket) require_flag_value "$1" "$#"; TICKET="$2"; shift 2 ;;
+      --ticket) require_flag_value "$1" "$#"; TICKET="$2"; CLI_TICKET="$2"; shift 2 ;;
+      --comment-bounces) COMMENT_BOUNCES=true; shift ;;
       --run-id) require_flag_value "$1" "$#"; RUN_ID="$2"; shift 2 ;;
       --model) require_flag_value "$1" "$#"; MODEL="$2"; shift 2 ;;
       -h|--help) usage; exit 0 ;;
@@ -328,11 +426,36 @@ main() {
     exit 1
   fi
 
-  local run_dir="memory/trampoline/${RUN_ID}"
-  mkdir -p "$run_dir"
+  if [ "$COMMENT_BOUNCES" = true ] && [ -z "$CLI_TICKET" ]; then
+    echo "trampollm: --comment-bounces requires --ticket" >&2
+    usage >&2
+    exit 1
+  fi
 
-  local prompt
-  prompt="$(build_prompt "$PROMPT")"
+  local run_dir="memory/trampoline/${RUN_ID}"
+  # An unchecked mkdir is a 3am failure mode: on a read-only mount or a full
+  # disk every subsequent `>"$out_json"` redirect fails BEFORE claude is
+  # execed, the loop reads that as an API error, burns RETRIES+1 attempts,
+  # and then cannot write TRIPPED.md either -- so the run dies with a wall of
+  # "No such file or directory" and no artifact at all. Fail here instead.
+  if ! mkdir -p "$run_dir" 2>/dev/null; then
+    echo "trampollm: cannot create run directory '$run_dir' (read-only, full, or bad --run-id?)" >&2
+    exit 1
+  fi
+  if [ ! -w "$run_dir" ]; then
+    echo "trampollm: run directory '$run_dir' is not writable" >&2
+    exit 1
+  fi
+  # A stale TRIPPED.md from an earlier run reusing this --run-id would
+  # outlive a subsequent clean run and make it look like it tripped.
+  if [ -f "$run_dir/TRIPPED.md" ]; then
+    log "run dir $run_dir already holds a TRIPPED.md from an earlier run with this --run-id; removing it"
+    rm -f "$run_dir/TRIPPED.md"
+  fi
+
+  local prompt seed
+  seed="$PROMPT"
+  prompt="$(build_prompt "$seed")"
 
   local bounce=0
   local cum_cost="0"
@@ -341,32 +464,47 @@ main() {
   local corrected_malformed=false
   local last_good_block=""
 
+  # Installed only here (not at source time, so the test harness can source
+  # this file for its pure helpers without inheriting a trap). Every local it
+  # reads is already assigned above; the :- guards are belt-and-braces
+  # against `set -u` should that ever stop being true.
+  trap 'log "exit $? after ${bounce:-0} bounce(s), cumulative cost \$${cum_cost:-0} -- artifacts in ${run_dir:-?}"' EXIT
+
+  log "run ${RUN_ID}: starting, agent=$AGENT, max-bounces=$MAX_BOUNCES, max-cost-usd=$MAX_COST_USD, artifacts in $run_dir"
+
   while :; do
     if [ "$bounce" -ge "$MAX_BOUNCES" ]; then
+      log "TRIP: --max-bounces $MAX_BOUNCES reached"
       write_tripped "$run_dir" "max-bounces" "$bounce" "$cum_cost" "$last_good_block"
       escalate_ticket "$TICKET" "$run_dir/TRIPPED.md"
       exit 3
     fi
 
     if awk -v c="$cum_cost" -v m="$MAX_COST_USD" 'BEGIN { exit !(c >= m) }'; then
+      log "TRIP: cumulative cost \$$cum_cost reached --max-cost-usd $MAX_COST_USD"
       write_tripped "$run_dir" "max-cost-usd" "$bounce" "$cum_cost" "$last_good_block"
       escalate_ticket "$TICKET" "$run_dir/TRIPPED.md"
       exit 5
     fi
 
     bounce=$((bounce + 1))
-    local out_json="$run_dir/$(printf '%03d' "$bounce")-response.json"
-    local err_log="$run_dir/$(printf '%03d' "$bounce")-stderr.log"
+    local out_json err_log padded
+    padded="$(printf '%03d' "$bounce")"
+    out_json="$run_dir/${padded}-response.json"
+    err_log="$run_dir/${padded}-stderr.log"
 
     local attempt=0
     local rc
     while :; do
       run_claude "$prompt" "$AGENT" "$out_json" "$err_log"
       rc=$?
+      # Bill first, judge second: a dispatch that failed still cost money.
+      accumulate_cost "$out_json"
       if ! is_bad_response "$rc" "$out_json"; then
         break
       fi
       attempt=$((attempt + 1))
+      log "bounce $bounce: dispatch failed (rc=$rc), attempt $attempt of $((RETRIES + 1)); see $err_log"
       # --retries N means N retries AFTER the initial attempt, i.e. N+1
       # total dispatches per bounce on continuous failure: attempt only
       # trips once it exceeds RETRIES (strictly greater than), not on
@@ -376,12 +514,24 @@ main() {
         escalate_ticket "$TICKET" "$run_dir/TRIPPED.md"
         exit 1
       fi
+      # The cost rail is checked at the top of every bounce, but retries are
+      # dispatches too: without this, a bounce whose attempts each bill
+      # heavily could blow clean through the cumulative cap before the loop
+      # ever gets back to the top. Only reached on the retry path, so a
+      # successful bounce that lands exactly on the cap still completes.
+      if awk -v c="$cum_cost" -v m="$MAX_COST_USD" 'BEGIN { exit !(c >= m) }'; then
+        log "cumulative cost $cum_cost reached --max-cost-usd $MAX_COST_USD mid-bounce; stopping retries"
+        write_tripped "$run_dir" "max-cost-usd" "$bounce" "$cum_cost" "$last_good_block"
+        escalate_ticket "$TICKET" "$run_dir/TRIPPED.md"
+        exit 5
+      fi
+      # Keep the failed attempt's artifacts; the retry is about to clobber
+      # the canonical NNN- paths. The LAST (fatal) attempt deliberately keeps
+      # the canonical name, since that is the one an operator opens first.
+      mv -f "$out_json" "$run_dir/${padded}-attempt${attempt}-response.json" 2>/dev/null
+      mv -f "$err_log" "$run_dir/${padded}-attempt${attempt}-stderr.log" 2>/dev/null
       backoff_sleep "$attempt"
     done
-
-    local bounce_cost
-    bounce_cost="$(jq -r '.total_cost_usd // 0' "$out_json")"
-    cum_cost="$(awk -v a="$cum_cost" -v b="$bounce_cost" 'BEGIN { printf "%s", a + b }')"
 
     local result
     result="$(jq -r '.result // empty' "$out_json")"
@@ -398,7 +548,16 @@ main() {
       *)
         if [ "$corrected_malformed" = false ]; then
           corrected_malformed=true
-          prompt="$(build_prompt "$MALFORMED_CORRECTION")"
+          log "bounce $bounce: no valid baton; re-prompting once with the correction"
+          # Re-send the SEED alongside the correction. Every bounce is a fresh
+          # context window -- the preamble says so explicitly -- so a bare
+          # correction asks a model that has never seen the task to "re-emit"
+          # something it has no knowledge of. That paid bounce could only ever
+          # produce another malformed baton, turning a recoverable hiccup into
+          # a guaranteed exit-1 trip.
+          prompt="$(build_prompt "$seed
+
+$MALFORMED_CORRECTION")"
           continue
         else
           write_tripped "$run_dir" "malformed-baton" "$bounce" "$cum_cost" "$last_good_block"
@@ -411,6 +570,11 @@ main() {
 
     write_baton_file "$run_dir" "$bounce" "$block"
     last_good_block="$block"
+    log "bounce $bounce: status=$status agent=$AGENT cumulative cost \$$cum_cost"
+
+    if [ "$COMMENT_BOUNCES" = true ]; then
+      comment_bounce "$CLI_TICKET" "$run_dir/${padded}-baton.md" "$bounce"
+    fi
 
     if [ -z "$TICKET" ]; then
       local baton_ticket
@@ -430,10 +594,17 @@ main() {
     fi
 
     if [ "$identical_count" -eq 2 ]; then
-      prompt="$(build_prompt "$IDENTICAL_CORRECTION")"
+      log "bounce $bounce: identical baton; re-prompting once with the correction"
+      # Same fresh-context reasoning as the malformed path: the repeated
+      # baton has to travel WITH the scolding, or the corrective bounce is
+      # told to "change your approach" with no idea what the approach was.
+      prompt="$(build_prompt "$block
+
+$IDENTICAL_CORRECTION")"
       continue
     fi
     if [ "$identical_count" -ge 3 ]; then
+      log "TRIP: identical baton $identical_count times running (insanity loop)"
       write_tripped "$run_dir" "loop-detected" "$bounce" "$cum_cost" "$last_good_block"
       escalate_ticket "$TICKET" "$run_dir/TRIPPED.md"
       exit 4
@@ -441,11 +612,13 @@ main() {
 
     case "$status" in
       DONE)
+        log "DONE: relay terminated cleanly at bounce $bounce"
         exit 0
         ;;
       PARK|ESCALATE)
         local rail
         rail="$(printf '%s' "$status" | tr '[:upper:]' '[:lower:]')"
+        log "TRIP: relay stopped by status: $status"
         write_tripped "$run_dir" "$rail" "$bounce" "$cum_cost" "$last_good_block"
         escalate_ticket "$TICKET" "$run_dir/TRIPPED.md"
         exit 2
@@ -456,7 +629,8 @@ main() {
         if [ -n "$next_agent" ] && [ "$next_agent" != "<same>" ]; then
           AGENT="$next_agent"
         fi
-        prompt="$(build_prompt "$block")"
+        seed="$block"
+        prompt="$(build_prompt "$seed")"
         ;;
     esac
   done

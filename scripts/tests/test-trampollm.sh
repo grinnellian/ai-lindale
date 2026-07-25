@@ -19,6 +19,30 @@ PROJECT=""
 STUB_DIR=""
 rc=0
 
+# `timeout` is GNU coreutils: present on the CI runner (ubuntu-latest) and in
+# the pod container, absent from a stock macOS PATH. Resolving it up front
+# keeps the hang-guard tests from failing with 127 ("command not found") on a
+# maintainer's laptop and mis-reporting a portability gap as a script bug.
+if command -v timeout >/dev/null 2>&1; then
+  TIMEOUT_CMD="timeout"
+elif command -v gtimeout >/dev/null 2>&1; then
+  TIMEOUT_CMD="gtimeout"
+else
+  TIMEOUT_CMD=""
+  echo "NOTE: neither timeout(1) nor gtimeout found; hang-guard tests run unguarded" >&2
+fi
+
+# guarded <seconds> <cmd...> — run <cmd> under the timeout guard when one
+# exists, bare otherwise. Exit code 124 still means "timed out".
+guarded() {
+  local secs="$1"; shift
+  if [ -n "$TIMEOUT_CMD" ]; then
+    "$TIMEOUT_CMD" "$secs" "$@"
+  else
+    "$@"
+  fi
+}
+
 # --- Setup / teardown ---
 
 setup_project() {
@@ -323,7 +347,7 @@ test_arg_parser_valueless_trailing_flag_exits_1() {
   for flag in $VALUE_TAKING_FLAGS; do
     set +e
     PATH="$PROJECT/bin:$PATH" TRAMPOLLM_BACKOFF_BASE=0 \
-      timeout 5 bash "$TRAMPOLLM" "$flag" >"$PROJECT/stdout.log" 2>"$PROJECT/stderr.log"
+      guarded 5 bash "$TRAMPOLLM" "$flag" >"$PROJECT/stdout.log" 2>"$PROJECT/stderr.log"
     frc=$?
     set -e
     if [ "$frc" -eq 124 ]; then
@@ -358,7 +382,7 @@ test_arg_parser_rejects_non_numeric_rail_values() {
   for flag in --max-bounces --retries --max-cost-usd; do
     set +e
     PATH="$PROJECT/bin:$PATH" TRAMPOLLM_BACKOFF_BASE=0 \
-      timeout 5 bash "$TRAMPOLLM" --prompt "start" "$flag" abc --run-id "test-run-$flag" \
+      guarded 5 bash "$TRAMPOLLM" --prompt "start" "$flag" abc --run-id "test-run-$flag" \
       >"$PROJECT/stdout.log" 2>"$PROJECT/stderr.log"
     frc=$?
     set -e
@@ -738,6 +762,220 @@ $(baton_block CONTINUE step1)" 0.01
   assert_file_contains "$PROJECT/stderr.log" "gh not found; skipping escalation"
 }
 
+# ===========================================================================
+# Phase 6 — cost accounting, pre-flight, and corrective-prompt context
+# ===========================================================================
+
+# A dispatch that failed is still a billed dispatch. Summing only the winning
+# attempt let the cumulative rail under-count without bound.
+test_failed_attempts_count_toward_cumulative_cost() {
+  setup_project
+  fixture_error 1 "boom" 1 3.00
+  fixture_error 2 "boom" 1 3.00
+  fixture_ok 3 "recovered.
+
+$(baton_block DONE final)" 0.01
+  run_trampollm --prompt "start" --retries 3 --max-cost-usd 1.00
+  # One $3.00 failed attempt already blows the $1.00 cap, so the retry path
+  # stops there: 1 dispatch, not the 4 that --retries 3 would otherwise allow.
+  # Before the fix this run reached bounce 3 and exited 0 believing it had
+  # spent $0.01, because only the winning attempt was ever summed.
+  assert_eq 5 "$rc" "exit code (a \$3.00 failed attempt must trip a \$1.00 cap)" &&
+  assert_file_contains "$RUN_DIR/TRIPPED.md" "rail: max-cost-usd" &&
+  assert_file_contains "$RUN_DIR/TRIPPED.md" "cumulative_cost_usd: 3" &&
+  assert_call_count "$STUB_DIR/calls.log" 1
+}
+
+# The failed attempts' raw JSON/stderr must survive the retry that clobbers
+# the canonical NNN- paths -- otherwise the only evidence of what went wrong
+# is overwritten by the attempt that succeeded.
+test_failed_attempt_artifacts_preserved() {
+  setup_project
+  fixture_error 1 "first failure marker" 1 0
+  fixture_ok 2 "recovered.
+
+$(baton_block DONE final)" 0.01
+  run_trampollm --prompt "start" --retries 3
+  assert_eq 0 "$rc" "exit code" &&
+  assert_file_exists "$RUN_DIR/001-attempt1-response.json" &&
+  assert_file_contains "$RUN_DIR/001-attempt1-response.json" "first failure marker" &&
+  assert_file_exists "$RUN_DIR/001-response.json"
+}
+
+# Every bounce is a fresh context window, so a bare correction asks a model
+# that has never seen the task to "re-emit" something it knows nothing about.
+test_malformed_correction_carries_seed_context() {
+  setup_project
+  fixture_ok 1 "no baton block here." 0.01
+  fixture_ok 2 "recovered.
+
+$(baton_block DONE final)" 0.01
+  run_trampollm --prompt "SEED-TASK-MARKER: ship the widget parser"
+  assert_eq 0 "$rc" "exit code" &&
+  assert_call_contains "$STUB_DIR/calls.log" 2 "no valid BATON v1 block" &&
+  assert_call_contains "$STUB_DIR/calls.log" 2 "SEED-TASK-MARKER: ship the widget parser"
+}
+
+test_identical_correction_carries_baton_context() {
+  setup_project
+  fixture_ok 1 "one.
+
+$(baton_block CONTINUE same-step)" 0.01
+  fixture_ok 2 "two, identical.
+
+$(baton_block CONTINUE same-step)" 0.01
+  fixture_ok 3 "three, changed.
+
+$(baton_block DONE moved-on)" 0.01
+  run_trampollm --prompt "start"
+  assert_eq 0 "$rc" "exit code" &&
+  assert_call_contains "$STUB_DIR/calls.log" 3 "Identical baton detected" &&
+  assert_call_contains "$STUB_DIR/calls.log" 3 "next-step: same-step" &&
+  assert_call_contains "$STUB_DIR/calls.log" 3 "goal: relay test goal"
+}
+
+# Missing `claude` used to be indistinguishable from an API failure: the loop
+# burned RETRIES+1 dispatch attempts and wrote a TRIPPED.md whose only clue
+# was "rail: error".
+test_missing_claude_fails_fast_with_hint() {
+  setup_project
+  fixture_ok 1 "irrelevant" 0.01
+  set +e
+  PATH="/usr/bin:/bin:/usr/sbin:/sbin" TRAMPOLLM_BACKOFF_BASE=0 \
+    bash "$TRAMPOLLM" --prompt "start" --run-id test-run \
+    >"$PROJECT/stdout.log" 2>"$PROJECT/stderr.log"
+  rc=$?
+  set -e
+  assert_eq 1 "$rc" "exit code" &&
+  assert_file_contains "$PROJECT/stderr.log" "'claude' not found on PATH" &&
+  assert_file_not_exists "$RUN_DIR/TRIPPED.md"
+}
+
+# An unchecked mkdir meant every later redirect failed before claude was
+# execed, the loop read that as an API error, and TRIPPED.md could not be
+# written either. `memory` as a regular file makes mkdir fail even for root.
+test_unwritable_run_dir_fails_fast() {
+  setup_project
+  fixture_ok 1 "irrelevant" 0.01
+  printf 'not a directory\n' >"$PROJECT/memory"
+  set +e
+  PATH="$PROJECT/bin:$PATH" TRAMPOLLM_BACKOFF_BASE=0 \
+    guarded 10 bash "$TRAMPOLLM" --prompt "start" --run-id test-run \
+    >"$PROJECT/stdout.log" 2>"$PROJECT/stderr.log"
+  rc=$?
+  set -e
+  assert_eq 1 "$rc" "exit code" &&
+  assert_file_contains "$PROJECT/stderr.log" "cannot create run directory" &&
+  assert_eq "" "$(cat "$STUB_DIR/counter" 2>/dev/null || echo "")" "no dispatch may happen"
+}
+
+# A stale TRIPPED.md from an earlier run reusing this --run-id would outlive a
+# later clean run and make it look like it tripped.
+test_stale_tripped_md_cleared_on_rerun() {
+  setup_project
+  fixture_ok 1 "one.
+
+$(baton_block CONTINUE step1)" 0.01
+  run_trampollm --prompt "start" --max-bounces 1
+  assert_eq 3 "$rc" "first run trips" || return 1
+  assert_file_exists "$RUN_DIR/TRIPPED.md" || return 1
+  rm -f "$STUB_DIR/counter"
+  fixture_ok 1 "clean.
+
+$(baton_block DONE final)" 0.01
+  run_trampollm --prompt "start"
+  assert_eq 0 "$rc" "second run is clean" &&
+  assert_file_not_exists "$RUN_DIR/TRIPPED.md"
+}
+
+# Escalation IS the page to a human: a silent gh failure means nobody learns
+# the relay tripped.
+test_failed_gh_escalation_warns() {
+  setup_project
+  cat >"$PROJECT/bin/gh" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$STUB_DIR/gh.log"
+echo "gh: HTTP 401 Bad credentials" >&2
+exit 1
+STUB
+  chmod +x "$PROJECT/bin/gh"
+  fixture_ok 1 "one.
+
+$(baton_block CONTINUE step1)" 0.01
+  run_trampollm --prompt "start" --max-bounces 1 --ticket 108
+  assert_eq 3 "$rc" "trip exit code is unaffected by a failed page" &&
+  assert_file_exists "$RUN_DIR/TRIPPED.md" &&
+  assert_file_contains "$PROJECT/stderr.log" "nobody was paged" &&
+  assert_file_contains "$PROJECT/stderr.log" "--add-label needs-human' failed"
+}
+
+# ===========================================================================
+# Phase 7 — spec item 4: optional per-bounce issue comments
+# ===========================================================================
+
+test_comment_bounces_posts_each_baton() {
+  setup_project
+  fixture_ok 1 "one.
+
+$(baton_block CONTINUE step1)" 0.01
+  fixture_ok 2 "two, done.
+
+$(baton_block DONE step2)" 0.01
+  run_trampollm --prompt "start" --ticket 108 --comment-bounces
+  assert_eq 0 "$rc" "exit code" &&
+  assert_file_contains "$STUB_DIR/gh.log" "issue comment 108 --body-file" &&
+  assert_eq 2 "$(grep -c 'issue comment 108' "$STUB_DIR/gh.log")" "one comment per bounce"
+}
+
+test_comment_bounces_off_by_default() {
+  setup_project
+  fixture_ok 1 "one, done.
+
+$(baton_block DONE step1)" 0.01
+  run_trampollm --prompt "start" --ticket 108
+  assert_eq 0 "$rc" "exit code" &&
+  assert_file_not_exists "$STUB_DIR/gh.log"
+}
+
+# --comment-bounces is restricted to an operator-supplied ticket: a ticket
+# adopted out of a baton is model-authored, and one authenticated write per
+# bounce aimed at a model-chosen issue is not something to enable implicitly.
+test_comment_bounces_requires_cli_ticket() {
+  setup_project
+  fixture_ok 1 "irrelevant" 0.01
+  set +e
+  PATH="$PROJECT/bin:$PATH" TRAMPOLLM_BACKOFF_BASE=0 \
+    guarded 10 bash "$TRAMPOLLM" --prompt "start" --comment-bounces --run-id test-run \
+    >"$PROJECT/stdout.log" 2>"$PROJECT/stderr.log"
+  rc=$?
+  set -e
+  assert_eq 1 "$rc" "exit code" &&
+  assert_file_contains "$PROJECT/stderr.log" "--comment-bounces requires --ticket" &&
+  assert_eq "" "$(cat "$STUB_DIR/counter" 2>/dev/null || echo "")" "no dispatch may happen"
+}
+
+# ===========================================================================
+# Phase 8 — operator-facing progress
+# ===========================================================================
+
+# An unattended run that prints nothing at all while spending money is
+# unauditable until it is over. stdout stays clean; stderr carries progress.
+test_progress_logged_to_stderr_stdout_stays_clean() {
+  setup_project
+  fixture_ok 1 "one.
+
+$(baton_block CONTINUE step1)" 0.01
+  fixture_ok 2 "two, done.
+
+$(baton_block DONE step2)" 0.02
+  run_trampollm --prompt "start"
+  assert_eq 0 "$rc" "exit code" &&
+  assert_eq "" "$(cat "$PROJECT/stdout.log")" "stdout stays empty" &&
+  assert_file_contains "$PROJECT/stderr.log" "bounce 1: status=CONTINUE" &&
+  assert_file_contains "$PROJECT/stderr.log" "bounce 2: status=DONE" &&
+  assert_file_contains "$PROJECT/stderr.log" "cumulative cost"
+}
+
 # --- Run all tests ---
 
 echo "=== FEAT-018 trampollm Tests ==="
@@ -786,6 +1024,24 @@ run_test "TRIPPED.md contains rail/bounce/cost/last-baton" test_tripped_md_conte
 run_test "escalation posts gh comment + needs-human label when ticket set" test_escalation_with_ticket
 run_test "no gh calls when ticket unset" test_no_escalation_without_ticket
 run_test "escalation degrades gracefully (warns, no crash) when gh is absent" test_escalation_degrades_gracefully_without_gh
+echo ""
+echo "--- phase 6: cost accounting, pre-flight, corrective-prompt context ---"
+run_test "failed dispatch attempts count toward the cumulative cost rail" test_failed_attempts_count_toward_cumulative_cost
+run_test "failed attempts' response/stderr artifacts survive the retry" test_failed_attempt_artifacts_preserved
+run_test "malformed correction re-sends the seed, not a context-free scolding" test_malformed_correction_carries_seed_context
+run_test "identical correction re-sends the repeated baton with the scolding" test_identical_correction_carries_baton_context
+run_test "missing 'claude' fails fast with a hint, no dispatch attempts" test_missing_claude_fails_fast_with_hint
+run_test "uncreatable run dir fails fast before any dispatch" test_unwritable_run_dir_fails_fast
+run_test "stale TRIPPED.md removed when a run-id is reused" test_stale_tripped_md_cleared_on_rerun
+run_test "failed gh escalation warns loudly, trip exit code unchanged" test_failed_gh_escalation_warns
+echo ""
+echo "--- phase 7: optional per-bounce issue comments (spec item 4) ---"
+run_test "--comment-bounces posts each baton via --body-file" test_comment_bounces_posts_each_baton
+run_test "per-bounce comments are off by default" test_comment_bounces_off_by_default
+run_test "--comment-bounces requires an operator-supplied --ticket" test_comment_bounces_requires_cli_ticket
+echo ""
+echo "--- phase 8: operator-facing progress ---"
+run_test "progress on stderr, stdout stays clean" test_progress_logged_to_stderr_stdout_stays_clean
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ] || exit 1

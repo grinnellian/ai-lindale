@@ -96,11 +96,29 @@ concepts rhyme, but is deliberately not the same contract as either:
 
 Every baton is written verbatim to
 `memory/trampoline/<run-id>/NNN-baton.md` (zero-padded, one file per bounce)
-— the chain of these files is the audit trail. When a rail trips
-(`--max-bounces`, cumulative `--max-cost-usd`, identical-baton loop
-detection, exhausted error retries, or an unrecoverable malformed baton),
-the trampoline writes `memory/trampoline/<run-id>/TRIPPED.md` containing the
-rail name, bounce count, cumulative cost, and the last good baton verbatim —
-the resume path is feeding that block back in as a fresh `--prompt`. If
-`ticket:` is known (from `--ticket` or supplied by the baton itself), the
-trip also posts an issue comment and adds the `needs-human` label.
+— the chain of these files is the audit trail. Alongside them the trampoline
+keeps each bounce's raw response JSON and stderr (`NNN-response.json`,
+`NNN-stderr.log`); a dispatch that failed and was retried is preserved under
+`NNN-attemptK-*` so the retry cannot overwrite the evidence of what went
+wrong. Those raw files are gitignored — the batons are the tracked record.
+
+When a rail trips (`--max-bounces`, cumulative `--max-cost-usd`,
+identical-baton loop detection, exhausted error retries, or an unrecoverable
+malformed baton), the trampoline writes
+`memory/trampoline/<run-id>/TRIPPED.md` containing the rail name, bounce
+count, cumulative cost, and the last good baton verbatim — the resume path is
+feeding that block back in as a fresh `--prompt`. If `ticket:` is known (from
+`--ticket` or supplied by the baton itself), the trip also posts an issue
+comment and adds the `needs-human` label; a failure to post is reported on
+stderr rather than swallowed, since that comment is the page to a human.
+
+Cost accounting counts **every** dispatch, not only the one whose baton was
+accepted: a bounce that errors after doing work is still a billed run, so
+failed attempts are summed into the cumulative total and the cap is
+re-checked between retries.
+
+Per-bounce issue comments are available opt-in via `--comment-bounces`, using
+the same `--body-file` pattern as escalation. It requires a `--ticket` passed
+on the command line: a `ticket:` adopted out of a baton is model-authored,
+and a write per bounce aimed at a model-chosen issue should be a deliberate
+operator choice.

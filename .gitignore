@@ -3,3 +3,9 @@
 
 # Self-referencing submodule (dev testing, not part of the product)
 .ai-lindale/
+
+# trampollm (FEAT-018) raw run artifacts. The baton chain and TRIPPED.md are
+# the audit trail and stay tracked; raw model JSON and per-bounce stderr are
+# unbounded, may echo prompt/tool content, and must not drift into a commit.
+memory/trampoline/*/*-response.json
+memory/trampoline/*/*-stderr.log
