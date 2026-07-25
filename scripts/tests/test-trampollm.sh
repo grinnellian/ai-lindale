@@ -344,6 +344,65 @@ test_arg_parser_valueless_trailing_flag_exits_1() {
   [ "$failed" -eq 0 ]
 }
 
+# test_arg_parser_rejects_non_numeric_rail_values — a non-numeric value for
+# a rail that the wrapper itself compares (max-bounces, retries: bash `-ge`/
+# `-gt`; max-cost-usd: awk numeric compare) must fail fast with exit 1 and a
+# usage message, never silently disable the rail. Reproduces a review
+# finding: "trampollm.sh --retries abc" against an always-erroring stub used
+# to hang forever (`[ "$attempt" -gt "abc" ]` errors, `if` treats the shell
+# error as false, the retry loop never trips).
+test_arg_parser_rejects_non_numeric_rail_values() {
+  setup_project
+  fixture_ok 1 "irrelevant -- should never be dispatched" 0.01
+  local flag failed=0 frc
+  for flag in --max-bounces --retries --max-cost-usd; do
+    set +e
+    PATH="$PROJECT/bin:$PATH" TRAMPOLLM_BACKOFF_BASE=0 \
+      timeout 5 bash "$TRAMPOLLM" --prompt "start" "$flag" abc --run-id "test-run-$flag" \
+      >"$PROJECT/stdout.log" 2>"$PROJECT/stderr.log"
+    frc=$?
+    set -e
+    if [ "$frc" -eq 124 ]; then
+      echo "    flag $flag abc: timed out under timeout(1) -- rail silently disabled"
+      failed=1
+      continue
+    fi
+    if [ "$frc" -ne 1 ]; then
+      echo "    flag $flag abc: expected exit 1, got $frc"
+      failed=1
+      continue
+    fi
+    if ! grep -qi "requires a non-negative" "$PROJECT/stderr.log"; then
+      echo "    flag $flag abc: expected a usage message on stderr, got: $(cat "$PROJECT/stderr.log")"
+      failed=1
+    fi
+    if [ -d "$RUN_DIR" ] || [ -d "memory/trampoline/test-run-$flag" ]; then
+      echo "    flag $flag abc: dispatched a bounce before rejecting the bad value"
+      failed=1
+    fi
+  done
+  [ "$failed" -eq 0 ]
+}
+
+test_arg_parser_accepts_decimal_cost_values() {
+  local v failed=0
+  for v in 10.00 0.5 .5 5 0; do
+    setup_project
+    fixture_ok 1 "work done.
+
+$(baton_block DONE final)" 0.5
+    run_trampollm --prompt "do the thing" --max-cost-usd "$v"
+    if [ "$v" = "0" ]; then
+      # cumulative cost 0 >= cap 0 trips immediately, before any dispatch.
+      assert_eq 5 "$rc" "exit code for --max-cost-usd $v" || failed=1
+    else
+      assert_eq 0 "$rc" "exit code for --max-cost-usd $v" || failed=1
+    fi
+    teardown
+  done
+  [ "$failed" -eq 0 ]
+}
+
 # ===========================================================================
 # Phase 2 — single bounce & the is_error gotcha
 # ===========================================================================
@@ -694,6 +753,8 @@ run_test "hash_baton differs on next-step change" test_hash_differs_on_next_step
 echo ""
 echo "--- phase 1b: CLI arg-parser safety ---"
 run_test "value-less trailing flag exits 1 (never hangs), for every value-taking flag" test_arg_parser_valueless_trailing_flag_exits_1
+run_test "non-numeric rail values (max-bounces/retries/max-cost-usd) rejected, never silently disabled" test_arg_parser_rejects_non_numeric_rail_values
+run_test "decimal --max-cost-usd values (10.00, 0.5, .5, 5, 0) all accepted" test_arg_parser_accepts_decimal_cost_values
 echo ""
 echo "--- phase 2: single bounce & is_error gotcha ---"
 run_test "clean single bounce DONE -> exit 0, writes 001-baton.md" test_clean_single_bounce_done

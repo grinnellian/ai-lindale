@@ -255,6 +255,41 @@ require_flag_value() {
   fi
 }
 
+# validate_nonneg_int <flag> <value> — exits 1 with a usage error unless
+# <value> is a bare non-negative integer. Without this guard, a non-numeric
+# --max-bounces/--retries silently disables that rail: `[ "$x" -ge "$y" ]`
+# fails with "integer expression expected", the surrounding `if` treats the
+# shell error as false (not a trip), and under `set -uo pipefail` (no -e)
+# the script sails on with the cap permanently inert -- observed to spin
+# forever against a stub that always errors, once --retries is non-numeric.
+validate_nonneg_int() {
+  local flag="$1" value="$2"
+  case "$value" in
+    ''|*[!0-9]*)
+      echo "trampollm: $flag requires a non-negative integer, got: $value" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+}
+
+# validate_nonneg_number <flag> <value> — exits 1 with a usage error unless
+# <value> is a non-negative integer or decimal. Guards --max-cost-usd /
+# --max-budget-usd, whose comparisons go through awk: a non-numeric value
+# there doesn't error loudly, it silently makes the cost rail inert (awk
+# falls back to string comparison, and a numeric-looking cumulative cost
+# string always sorts below a letter-leading string).
+validate_nonneg_number() {
+  local flag="$1" value="$2"
+  case "$value" in
+    ''|*[!0-9.]*|*.*.*|.|*.)
+      echo "trampollm: $flag requires a non-negative number, got: $value" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+}
+
 main() {
   require_jq || exit 1
 
@@ -274,11 +309,11 @@ main() {
     case "$1" in
       --prompt) require_flag_value "$1" "$#"; PROMPT="$2"; shift 2 ;;
       --agent) require_flag_value "$1" "$#"; AGENT="$2"; shift 2 ;;
-      --max-bounces) require_flag_value "$1" "$#"; MAX_BOUNCES="$2"; shift 2 ;;
-      --max-turns) require_flag_value "$1" "$#"; MAX_TURNS="$2"; shift 2 ;;
-      --max-budget-usd) require_flag_value "$1" "$#"; MAX_BUDGET_USD="$2"; shift 2 ;;
-      --max-cost-usd) require_flag_value "$1" "$#"; MAX_COST_USD="$2"; shift 2 ;;
-      --retries) require_flag_value "$1" "$#"; RETRIES="$2"; shift 2 ;;
+      --max-bounces) require_flag_value "$1" "$#"; validate_nonneg_int "$1" "$2"; MAX_BOUNCES="$2"; shift 2 ;;
+      --max-turns) require_flag_value "$1" "$#"; validate_nonneg_int "$1" "$2"; MAX_TURNS="$2"; shift 2 ;;
+      --max-budget-usd) require_flag_value "$1" "$#"; validate_nonneg_number "$1" "$2"; MAX_BUDGET_USD="$2"; shift 2 ;;
+      --max-cost-usd) require_flag_value "$1" "$#"; validate_nonneg_number "$1" "$2"; MAX_COST_USD="$2"; shift 2 ;;
+      --retries) require_flag_value "$1" "$#"; validate_nonneg_int "$1" "$2"; RETRIES="$2"; shift 2 ;;
       --ticket) require_flag_value "$1" "$#"; TICKET="$2"; shift 2 ;;
       --run-id) require_flag_value "$1" "$#"; RUN_ID="$2"; shift 2 ;;
       --model) require_flag_value "$1" "$#"; MODEL="$2"; shift 2 ;;
