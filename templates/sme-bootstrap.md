@@ -77,3 +77,13 @@ Report to the user:
 
 The generated SME is project-owned — committed to the repo, never overwritten
 by framework updates.
+
+## Note: TPM Dispatch (DX-036)
+
+No further step is needed to make the new SME dispatchable. The framework
+TPM's `tools:` frontmatter declares a bare `Agent` (unrestricted), so any
+agent defined in `.claude/agents/` — including the one you just generated —
+is immediately callable via the TPM's `Agent` tool. If a downstream project
+has claimed a local override of `tpm.md` that re-narrows `Agent` to an
+explicit list, that override must be kept in sync by hand whenever a new
+agent is added.

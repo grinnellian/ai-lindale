@@ -6,7 +6,7 @@ tools:
   - Grep
   - Glob
   - Bash
-  - Agent(architect, dev)
+  - Agent
   - Write
   - Edit
 model: claude-opus-4-7

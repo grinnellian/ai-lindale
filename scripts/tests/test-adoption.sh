@@ -403,6 +403,19 @@ test_guide_documents_local_override() {
   assert_file_contains "$REPO_ROOT/docs/adoption-guide.md" "local override"
 }
 
+# --- DX-036: TPM agent dispatch ---
+
+test_tpm_agent_tool_unrestricted() {
+  # DX-036: the TPM's Agent tool must not be narrowed to a closed list of
+  # framework-default subagent types — that blocks dispatch to
+  # project-defined agents (SMEs, etc).
+  if grep -qE '^\s*-\s*Agent\(' "$REPO_ROOT/.claude/agents/tpm.md"; then
+    echo "    tpm.md still restricts Agent to a closed list"
+    return 1
+  fi
+  assert_file_contains "$REPO_ROOT/.claude/agents/tpm.md" 'Agent$'
+}
+
 # --- Run all tests ---
 
 echo "=== DX-007 Adoption Tests ==="
@@ -441,6 +454,9 @@ run_test "override: --force replaces regular file override" test_force_overrides
 run_test "override: skip applies to commands" test_override_applies_to_commands
 run_test "override: summary line reports linked/ok/skipped" test_summary_line
 run_test "guide: documents local override behavior" test_guide_documents_local_override
+echo ""
+echo "--- TPM agent dispatch ---"
+run_test "tpm.md Agent tool is not restricted to a closed list" test_tpm_agent_tool_unrestricted
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ] || exit 1
