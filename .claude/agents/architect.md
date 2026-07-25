@@ -7,7 +7,7 @@ tools:
   - Glob
   - Bash
   - Agent
-model: claude-opus-4-7
+model: claude-opus-5
 color: orange
 initialPrompt: /architect
 ---

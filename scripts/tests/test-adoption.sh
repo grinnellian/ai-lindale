@@ -403,6 +403,17 @@ test_guide_documents_local_override() {
   assert_file_contains "$REPO_ROOT/docs/adoption-guide.md" "local override"
 }
 
+# --- DX-041: model pin freshness ---
+
+test_no_superseded_model_pins() {
+  # DX-041: agent frontmatter must not pin superseded model ids.
+  if grep -rlE "model:[[:space:]]*(claude-opus-4-7|claude-sonnet-4-6)" "$REPO_ROOT"/.claude/agents/*.md "$REPO_ROOT"/templates/*.md 2>/dev/null; then
+    echo "    Found superseded model pin(s) above"
+    return 1
+  fi
+  return 0
+}
+
 # --- Run all tests ---
 
 echo "=== DX-007 Adoption Tests ==="
@@ -441,6 +452,9 @@ run_test "override: --force replaces regular file override" test_force_overrides
 run_test "override: skip applies to commands" test_override_applies_to_commands
 run_test "override: summary line reports linked/ok/skipped" test_summary_line
 run_test "guide: documents local override behavior" test_guide_documents_local_override
+echo ""
+echo "--- model pin freshness ---"
+run_test "no superseded model ids in agent/template frontmatter" test_no_superseded_model_pins
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ] || exit 1

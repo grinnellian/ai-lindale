@@ -9,7 +9,7 @@ tools:
   - Agent(architect, dev)
   - Write
   - Edit
-model: claude-opus-4-7
+model: claude-opus-5
 color: purple
 initialPrompt: /tpm
 ---
