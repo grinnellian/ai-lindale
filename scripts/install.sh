@@ -124,13 +124,15 @@ mkdir -p .claude/agents .claude/commands
 
 # Symlink core agents and commands — skipped in self-host mode
 if [ "$SELF_HOST" = false ]; then
-  # Symlink core agents (only framework-managed roles)
-  for agent in architect tpm dev; do
-    src="../../${FRAMEWORK_DIR}/.claude/agents/${agent}.md"
-    dest=".claude/agents/${agent}.md"
-    if [ -f "$FRAMEWORK_DIR/.claude/agents/${agent}.md" ]; then
-      link_managed "$src" "$dest"
-    fi
+  # Symlink every framework agent (BUG-009: glob instead of a hardcoded
+  # role list, so new agents like researcher/audit-repo propagate downstream
+  # without another install.sh edit).
+  for agent_file in "$FRAMEWORK_DIR"/.claude/agents/*.md; do
+    [ -f "$agent_file" ] || continue
+    agent_basename=$(basename "$agent_file")
+    src="../../${FRAMEWORK_DIR}/.claude/agents/${agent_basename}"
+    dest=".claude/agents/${agent_basename}"
+    link_managed "$src" "$dest"
   done
 
   # Symlink core commands

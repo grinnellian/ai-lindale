@@ -40,6 +40,13 @@ setup_project() {
   chmod +x "$FRAMEWORK/scripts/install.sh"
 }
 
+# Add non-core framework agent files (simulates researcher.md / audit-repo.md
+# landing upstream, per BUG-009) into the fake framework submodule.
+add_extra_agents() {
+  echo "# Researcher agent" > "$FRAMEWORK/.claude/agents/researcher.md"
+  echo "# Audit-repo agent" > "$FRAMEWORK/.claude/agents/audit-repo.md"
+}
+
 teardown() {
   if [ -n "$TMPDIR_BASE" ] && [ -d "$TMPDIR_BASE" ]; then
     rm -rf "$TMPDIR_BASE"
@@ -120,6 +127,29 @@ test_agent_symlinks() {
   for agent in architect tpm dev; do
     assert_symlink ".claude/agents/${agent}.md" "../../.ai-lindale/.claude/agents/${agent}.md"
   done
+}
+
+test_agent_symlinks_glob_includes_new_agents() {
+  # BUG-009: install.sh must not hardcode the agent list — any framework
+  # agent file (e.g. researcher.md, audit-repo.md) must symlink downstream.
+  setup_project
+  add_extra_agents
+  bash "$FRAMEWORK/scripts/install.sh"
+  assert_symlink ".claude/agents/researcher.md" "../../.ai-lindale/.claude/agents/researcher.md" &&
+  assert_symlink ".claude/agents/audit-repo.md" "../../.ai-lindale/.claude/agents/audit-repo.md"
+}
+
+test_agent_glob_preserves_project_owned_collision() {
+  # BUG-009 AC: a downstream project-owned agent at a colliding name must be
+  # skipped (not clobbered), even for names outside the old hardcoded set.
+  setup_project
+  add_extra_agents
+  setup_with_override ".claude/agents/researcher.md" "# project-owned researcher SME"
+  output=$(bash "$FRAMEWORK/scripts/install.sh" 2>&1)
+  assert_file_not_symlink ".claude/agents/researcher.md" &&
+  assert_file_contains ".claude/agents/researcher.md" "# project-owned researcher SME" &&
+  echo "$output" | grep -qi "skipped .claude/agents/researcher.md" &&
+  assert_symlink ".claude/agents/audit-repo.md" "../../.ai-lindale/.claude/agents/audit-repo.md"
 }
 
 test_command_symlinks() {
@@ -409,6 +439,8 @@ echo "=== DX-007 Adoption Tests ==="
 echo ""
 echo "--- install.sh tests ---"
 run_test "creates agent symlinks" test_agent_symlinks
+run_test "agent glob includes new (non-hardcoded) agents" test_agent_symlinks_glob_includes_new_agents
+run_test "agent glob preserves project-owned collision" test_agent_glob_preserves_project_owned_collision
 run_test "creates command symlinks" test_command_symlinks
 run_test "preserves project-owned files" test_preserves_project_files
 run_test "creates team-config.yml template" test_creates_team_config_template
