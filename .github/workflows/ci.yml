@@ -17,3 +17,6 @@ jobs:
 
       - name: Install / adoption tests
         run: bash scripts/tests/test-adoption.sh
+
+      - name: trampollm tests (FEAT-018)
+        run: bash scripts/tests/test-trampollm.sh
