@@ -76,7 +76,12 @@ one-time step:
 ```gitignore
 .claude/commit-msg.txt
 .claude/pr-body.md
+.claude/pr-body-*.md
 ```
+
+(The third pattern covers the older per-issue naming, `.claude/pr-body-<issue>.md`,
+that earlier prompt versions prescribed — a not-yet-synced submodule can still
+write it.)
 
 These are per-run handoff artifacts a dev subagent leaves in its worktree for
 the TPM to finalize a commit/PR from (the BUG-006 stage-and-return fallback).
