@@ -586,6 +586,46 @@ test_agent_stale_file_symlink_refreshed_correctly() {
   assert_symlink ".claude/agents/architect.md" "../../.ai-lindale/.claude/agents/architect.md"
 }
 
+# FEAT-011 review finding m2 (test gap): the `[ -d ]` guard around the
+# skills glob was never exercised, because setup_project unconditionally
+# creates the fixture's framework skills directory -- which also diverges
+# from the real framework repo, where .claude/skills/ does not exist at all.
+test_absent_framework_skills_dir_no_crash() {
+  setup_project
+  rmdir "$FRAMEWORK/.claude/skills"
+  bash "$FRAMEWORK/scripts/install.sh" > /dev/null
+  if [ ! -d ".claude/skills" ]; then
+    echo "    .claude/skills/ must still be scaffolded when the framework ships none"
+    return 1
+  fi
+  # Agents/commands must still have been linked -- an absent skills dir is
+  # not allowed to abort the run.
+  assert_symlink ".claude/agents/architect.md" "../../.ai-lindale/.claude/agents/architect.md"
+}
+
+# FEAT-011 review finding m2 (test gap): --force against a project-owned
+# skill *directory* colliding with a framework skill runs `rm -rf` on a real
+# directory -- new territory, since before FEAT-011 only regular files ever
+# reached that branch.
+test_force_replaces_project_owned_skill_directory() {
+  setup_project
+  setup_framework_skill "autocommit"
+  mkdir -p .claude/skills/autocommit/nested
+  echo "# local skill override" > .claude/skills/autocommit/SKILL.md
+  echo "local" > .claude/skills/autocommit/nested/extra.md
+
+  bash "$FRAMEWORK/scripts/install.sh" --force > /dev/null
+
+  assert_symlink ".claude/skills/autocommit" "../../.ai-lindale/.claude/skills/autocommit" || return 1
+  # The framework skill must be what resolves now, not the local content.
+  assert_file_contains ".claude/skills/autocommit/SKILL.md" "fake framework-shipped skill" || return 1
+  if [ -e ".claude/skills/autocommit/nested" ]; then
+    echo "    Local skill directory contents survived --force (rm -rf did not happen)"
+    return 1
+  fi
+  return 0
+}
+
 # --- standardization playbook tests (DX-025) ---
 
 test_standardization_playbook_template_exists() {
@@ -747,6 +787,8 @@ run_test "guide: documents .claude/skills convention" test_guide_documents_skill
 run_test "templates/skill.md skeleton exists" test_skill_template_exists
 run_test "skills: stale dir-symlink refreshed without corrupting target" test_skill_stale_dir_symlink_refreshed_correctly
 run_test "agents: stale file-symlink refreshed correctly" test_agent_stale_file_symlink_refreshed_correctly
+run_test "skills: absent framework skills dir does not abort the run" test_absent_framework_skills_dir_no_crash
+run_test "skills: --force replaces a project-owned skill directory" test_force_replaces_project_owned_skill_directory
 
 echo ""
 echo "--- handoff procedure tests (FEAT-013) ---"

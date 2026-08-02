@@ -125,7 +125,12 @@ test_agent_has_initial_prompt() {
 }
 
 test_agent_has_max_turns() {
-  assert_file_contains "$AGENT_FILE" 'maxTurns:'
+  # DX-029 review Nit-2: assert the tier value, not mere presence -- the
+  # old `maxTurns:` check would pass on `maxTurns: 999999`, so a future
+  # edit could silently drop researcher out of the DX-029 scheme
+  # (audit-repo 30 < researcher 40 < architect 50 < tpm 100 < dev 200;
+  # see memory/decisions.md).
+  assert_file_contains "$AGENT_FILE" '^maxTurns: 40$'
 }
 
 test_agent_signs_as_researcher() {
