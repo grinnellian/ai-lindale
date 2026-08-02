@@ -30,7 +30,10 @@ the project's `team-config.yml` (or `.claude/team-config.yml` downstream).
 - **Reviewer fan-out:** during the REVIEW state, after the planner-of-record
   reviews the PR, match the PR's changed paths (`gh pr diff --name-only`)
   against each glob key in `routing.reviewers`. Dispatch the mapped agent for
-  every matching glob, in addition to the planner review. If `routing:` is
+  every matching glob, in addition to the planner review — but dedupe first:
+  dispatch each distinct agent once no matter how many globs map to it, and
+  skip any that resolves to the planner-of-record, which has already reviewed
+  the PR. If `routing:` is
   absent or `reviewers` has no matching entry, review is the planner review
   plus discretionary domain reviewers (SME, security, i18n, etc.) dispatched
   as the TPM judges appropriate for what the PR touches — the same
@@ -41,8 +44,12 @@ the project's `team-config.yml` (or `.claude/team-config.yml` downstream).
   project-defined agent in `.claude/agents/` (see DX-036 / #85, which lifted
   the `Agent(architect, dev)` frontmatter restriction on `tpm.md` so the TPM
   can dispatch any project-defined agent by name). If a configured agent name
-  doesn't resolve, fall back to `architect` and note the misconfiguration in
-  the ticket comment rather than failing the dispatch.
+  doesn't resolve, note the misconfiguration in the ticket comment rather than
+  failing the dispatch — then, for a `planners` entry, fall back to
+  `architect`; for a `reviewers` entry, **skip that entry** instead. The
+  planner-of-record has already reviewed the PR, so falling a reviewer entry
+  back to `architect` would only dispatch a redundant second review of the
+  same diff.
 
 ## State Machine
 
@@ -54,7 +61,7 @@ Read each ticket's labels via `gh issue view N --json labels` to determine state
 | `needs-arch-review` | NEEDS_REVIEW | Spawn the routed planner subagent (see Routing; defaults to **architect**) to review and post TDD plan. On completion, apply `arch-approved`, remove `needs-arch-review`. |
 | `arch-approved` | PLANNED | Spawn **dev** subagent to implement. On dispatch, apply `in-progress`, remove `arch-approved`. |
 | `in-progress` | IN_PROGRESS | Skip — dev is working. |
-| `ready-for-review` | REVIEW | Coordinate review cycle (see Rules for review scope and bar): the routed planner reviews the PR (see Routing; defaults to **architect**); dispatch additional reviewers per the `routing.reviewers` glob matches for what the PR touches, falling back to discretionary domain-reviewer dispatch (SME, security, i18n, etc., as appropriate) when unconfigured. Send review comments back to dev for fixes. After all reviews pass: if `--auto-merge`, merge PR and close issue; otherwise report to user. |
+| `ready-for-review` | REVIEW | Coordinate review cycle (see Rules for review scope and bar): the routed planner reviews the PR (see Routing; defaults to **architect**); dispatch additional reviewers per the `routing.reviewers` glob matches for what the PR touches, plus any discretionary domain reviewers (SME, security, i18n, etc.) the PR warrants — glob matches add to that discretion, they never replace it, so an absent or non-matching `routing.reviewers` still leaves the discretionary fan-out in place. Send review comments back to dev for fixes. After all reviews pass: if `--auto-merge`, merge PR and close issue; otherwise report to user. |
 | `needs-human` | ESCALATED | Report required human action, skip. On next run, check for human response (issue comment) and resume from appropriate state (see Escalation Protocol). |
 | `blocked` | BLOCKED | Report blocker, skip. |
 
@@ -114,7 +121,7 @@ the escalation comment on every run.
 
 ## Rules
 
-- Dispatch independent architect reviews in parallel
+- Dispatch independent planner reviews in parallel (the planner is `architect` unless `routing.planners` says otherwise — see Routing)
 - Respect ticket dependencies — don't start a ticket until its prerequisites are in `in-progress` or later
 - On human escalation: follow the Escalation Protocol (apply `needs-human`, post the structured comment, record it in the Memory tracker), then move to next ticket
 - On blocker: apply `blocked` label, comment context on the issue, move to next ticket
