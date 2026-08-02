@@ -141,7 +141,19 @@ Chfirming a true claim costs minutes; trusting a false one costs the audit trail
 
 ## Development Workflow
 
-This repo develops the framework itself. To test changes:
+**Toolchain.** This repo has no package manager and no build step. The test
+command — the one agents mean by "run the project's tests", and the gate CI
+runs on every PR (`.github/workflows/ci.yml`) — is every suite under
+`scripts/tests/`:
+
+```bash
+for t in scripts/tests/test-*.sh; do bash "$t"; done
+```
+
+There is no lint step. There is no root `team-config.yml`; `templates/team-config.yml`
+is the downstream template, and its `toolchain:` block is commented out.
+
+To develop the framework itself:
 1. Modify agent definitions in `.claude/agents/`
 2. Launch with `claude --agent tpm` (or `./lindale` when available)
 3. Use `/autodev` in a TPM tab to run the full ticket lifecycle end-to-end
