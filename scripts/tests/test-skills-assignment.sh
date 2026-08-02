@@ -74,7 +74,10 @@ test_dev_does_not_preload_claude_api() {
 }
 
 test_dev_documents_claude_api_on_demand() {
-  assert_file_contains "$DEV_FILE" 'claude-api. skill on demand'
+  # Literal backtick, not "." -- grep's BRE treats "." as any-char, so the
+  # previous pattern happened to match by luck rather than by asserting the
+  # actual markdown-code-span text.
+  assert_file_contains "$DEV_FILE" 'claude-api` skill on demand'
 }
 
 test_dev_has_verify() {
@@ -112,7 +115,8 @@ test_researcher_has_no_skills_key() {
 }
 
 test_researcher_documents_claude_api_on_demand() {
-  assert_file_contains "$RESEARCHER_FILE" 'claude-api. skill on demand'
+  # Literal backtick -- see the matching note on the dev-side test above.
+  assert_file_contains "$RESEARCHER_FILE" 'claude-api` skill on demand'
 }
 
 # --- audit-repo: no skills key, but rationale documented ---
