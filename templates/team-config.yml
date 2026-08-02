@@ -22,7 +22,10 @@
 # Autodev state-label mapping — downstream projects commonly remap the
 # lifecycle labels used by .claude/commands/autodev.md's state machine
 # (e.g. `needs-arch-review`, `arch-approved`, `ready-for-review`) to their
-# own label sets. Not yet configurable here — future work, no ticket yet.
+# own label sets. Not yet configurable here — follow-up owned by DX-005
+# (#5, Project Configuration System), the ticket for this file's config
+# surface. Deliberately not pointed at #89 (DX-038): that ticket closes with
+# PR #101, which is what made the previous pointer dangle.
 # labels:
 #   needs-arch-review: needs-arch-review
 #   arch-approved: arch-approved
