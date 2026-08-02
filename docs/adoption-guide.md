@@ -125,7 +125,11 @@ motivated this convention (juno_automation_alpha's `autocommit` and
 `cortex-recall` skill) built project-specific tooling that isn't generic
 enough to upstream. Write your own skills directly at
 `.claude/skills/<name>/SKILL.md`; they are real files, version-controlled
-with your project, and never touched by `install.sh`.
+with your project, and never touched by a default `install.sh` run. (The one
+exception is the general `--force` semantics documented above: if the
+framework ever ships a skill whose name collides with yours, `--force`
+replaces your directory with the framework symlink — it `rm -rf`s the local
+copy, same as it does for a file override.)
 
 Use `templates/skill.md` (in this repo) as a starting skeleton for the
 frontmatter and structure of a new skill.

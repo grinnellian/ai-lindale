@@ -5,8 +5,11 @@
 # This file is a starting skeleton showing the expected frontmatter
 # convention, not a meta-template consumed by an agent.
 #
-# Skills live at .claude/skills/<skill-name>/SKILL.md. Copy this file
-# to that path and customize.
+# Skills live at .claude/skills/<skill-name>/SKILL.md. Copy this file to
+# that path, then DELETE this entire `#`-comment header before customizing:
+# Claude Code only parses frontmatter that starts on line 1 of SKILL.md, so
+# a verbatim copy leaves the name/description block unparsed and the skill
+# silently never loads.
 #
 # Conventions:
 #   - Directory name and `name:` field should match (kebab-case).

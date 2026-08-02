@@ -15,7 +15,11 @@
 #     - Correct symlink    → ok    (no-op, silent)
 #     - Wrong symlink      → refreshed (re-linked with message)
 #     - Regular file       → skipped  (printed warning; use --force to override)
-#     - Directory          → error    (skipped defensively)
+#     - Directory          → skipped  (printed warning; use --force to override)
+#   Directories take the same path as regular files -- there is no separate
+#   error branch. Since FEAT-011 a real directory at a managed path is the
+#   *expected* shape of a project-owned skill override, not a defensive edge
+#   case. Note that --force on such a directory `rm -rf`s it.
 #
 # Flags:
 #   --force   Override self-host detection AND replace any regular-file local
