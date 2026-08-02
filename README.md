@@ -58,6 +58,7 @@ ai-lindale/
 │   ├── handoff-procedure.md
 │   ├── standardization-playbook.md
 │   └── team-config.yml
+├── moat.yaml                         # moat run configuration (EPIC-004 credential injection)
 ├── CLAUDE.md
 └── README.md
 ```

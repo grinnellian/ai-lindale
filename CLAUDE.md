@@ -83,6 +83,7 @@ ai-lindale/
 ├── memory/
 │   ├── MEMORY_INDEX.md    # Index of all topic files
 │   └── *.md               # Topic-scoped memory files
+├── moat.yaml              # moat run configuration (EPIC-004 credential injection)
 ├── scripts/
 │   ├── check-file-overlap.sh    # Pre-dispatch file-overlap detection (DX-012)
 │   ├── install.sh                # Downstream install via git submodule
