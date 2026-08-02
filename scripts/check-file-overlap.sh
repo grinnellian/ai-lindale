@@ -9,7 +9,8 @@
 # PreToolUse hook. Hook-based enforcement was retired under EPIC-004
 # (container-as-boundary); see CLAUDE.md's Security Boundary section.
 #
-# Usage: check-file-overlap.sh <comma-separated-list-a> <comma-separated-list-b>
+# Usage: check-file-overlap.sh <path-list-a> <path-list-b>
+#        (each list comma- and/or newline-separated; see Input contract)
 # Exit 0: no overlap (or only shared-config warnings)
 # Exit 1: overlapping paths (exact match or directory containment)
 # Exit 2: usage error (wrong argument count)
@@ -21,8 +22,9 @@
 #   - Paths are compared literally after normalization (whitespace/"./"
 #     trim, duplicate- and trailing-slash collapse). No glob expansion, no
 #     case folding (SRC/a.ts != src/a.ts even on a case-insensitive
-#     filesystem), no ".." resolution -- give repo-relative paths as git
-#     prints them.
+#     filesystem), no ".." resolution, and no interior "/./" collapse
+#     (src/./a.ts != src/a.ts; only a *leading* "./" is stripped) -- give
+#     repo-relative paths as git prints them.
 #   - "." (or "./", "/") means the repo root and overlaps every path.
 
 set -uo pipefail
@@ -31,7 +33,8 @@ set -uo pipefail
 # dropped argument from a quoting mistake must not silently read as
 # "no overlap" -- that is the fail-unsafe direction for a safety check.
 if [ "$#" -ne 2 ]; then
-  echo "usage: $(basename "$0") <comma-separated-list-a> <comma-separated-list-b>" >&2
+  echo "usage: $(basename "$0") <path-list-a> <path-list-b>" >&2
+  echo "  (each list comma- and/or newline-separated)" >&2
   echo "  (pass \"\" for an intentionally empty list)" >&2
   exit 2
 fi
