@@ -121,6 +121,85 @@ test_no_arguments_is_usage_error() {
   [ "$rc" -eq 2 ]
 }
 
+test_newline_separated_list_detects_overlap() {
+  # Round-3 review: `read -r -a` stops at the first newline, so a list
+  # pasted with newline separators (the natural shape of a file list)
+  # silently dropped every entry after line 1 -- a real overlap on line 2
+  # reported clean. Newlines must be treated as separators like commas.
+  local rc
+  bash "$CHECKER" $'src/a.ts\nsrc/b.ts' "src/b.ts" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 1 ]
+}
+
+test_crlf_separated_list_detects_overlap() {
+  # A list pasted from CRLF content must not carry \r into path comparison.
+  local rc
+  bash "$CHECKER" $'src/a.ts\r\nsrc/b.ts' "src/b.ts" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 1 ]
+}
+
+test_repo_root_dot_contains_everything() {
+  # "." names the repo root, which contains every path. Before this fix it
+  # compared literally against nothing and read as "no overlap" -- the
+  # fail-unsafe direction for a safety check.
+  local rc
+  bash "$CHECKER" "." "src/a.ts" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 1 ]
+}
+
+test_repo_root_dot_slash_contains_everything() {
+  # "./" normalized to the empty string and was skipped as a blank entry.
+  local rc
+  bash "$CHECKER" "./" "src/a.ts" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 1 ]
+}
+
+test_root_slash_contains_everything() {
+  # "/" also normalized to empty and vanished. Treat any all-slash entry as
+  # the root: overlap-everything is the safe reading of an input that broad.
+  local rc
+  bash "$CHECKER" "/" "src/a.ts" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 1 ]
+}
+
+test_double_slash_normalized() {
+  # "src//a.ts" and "src/a.ts" name the same file.
+  local rc
+  bash "$CHECKER" "src//a.ts" "src/a.ts" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 1 ]
+}
+
+test_dash_named_path_not_swallowed() {
+  # normalize() used `echo`, whose bash builtin eats "-n"/"-e"/"-E" as
+  # flags -- a path literally named "-n" normalized to empty and vanished,
+  # so "-n" vs "-n" reported no overlap.
+  local rc
+  bash "$CHECKER" "-n" "-n" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 1 ]
+}
+
+test_glob_entry_prints_note() {
+  # Glob characters are compared literally, never expanded. That contract
+  # must be announced, not silent: "src/*" vs "src/a.ts" stays exit 0 (the
+  # checker is advisory and cannot know the glob's intent), but the output
+  # must carry a NOTE so the caller sees the entry was not expanded.
+  local out rc
+  out=$(bash "$CHECKER" "src/*" "src/a.ts")
+  rc=$?
+  if [ "$rc" -ne 0 ]; then
+    echo "    Expected exit 0 (literal comparison), got $rc"
+    return 1
+  fi
+  echo "$out" | grep -q "NOTE"
+}
+
 test_shared_config_warns_not_blocks() {
   local out rc
   out=$(bash "$CHECKER" "CLAUDE.md,src/a.ts" "CLAUDE.md,src/b.ts")
@@ -154,6 +233,14 @@ run_test "./ prefixed directory containment -> exit 1" test_dot_slash_directory_
 run_test "empty lists -> exit 0" test_empty_lists
 run_test "whitespace-only list entry is ignored -> exit 0" test_whitespace_only_entry_is_ignored
 run_test "one empty list -> exit 0" test_one_empty_list
+run_test "newline-separated list -> overlap detected, exit 1" test_newline_separated_list_detects_overlap
+run_test "CRLF-separated list -> overlap detected, exit 1" test_crlf_separated_list_detects_overlap
+run_test "repo root '.' contains everything -> exit 1" test_repo_root_dot_contains_everything
+run_test "repo root './' contains everything -> exit 1" test_repo_root_dot_slash_contains_everything
+run_test "root '/' contains everything -> exit 1" test_root_slash_contains_everything
+run_test "double slash normalized -> exit 1" test_double_slash_normalized
+run_test "path named '-n' is not swallowed -> exit 1" test_dash_named_path_not_swallowed
+run_test "glob entry prints a NOTE, stays advisory -> exit 0" test_glob_entry_prints_note
 run_test "missing second argument -> usage error, exit 2" test_missing_second_argument_is_usage_error
 run_test "no arguments -> usage error, exit 2" test_no_arguments_is_usage_error
 run_test "shared config file -> warning, exit 0" test_shared_config_warns_not_blocks
