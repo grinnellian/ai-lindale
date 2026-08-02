@@ -56,11 +56,18 @@ the project's `team-config.yml` (or `.claude/team-config.yml` downstream).
 
 ## State Machine
 
-Read each ticket's labels via `gh issue view N --json labels` to determine state:
+Read each ticket's labels via `gh issue view N --json labels` to determine state.
+Only the **lifecycle labels** in the table below select a row. Every other label a
+ticket carries — the type/prefix labels this repo puts on nearly every issue (`DX`,
+`FEAT`, `BUG`, `bug`, `DOCS`, `INFRA`, `EPIC`) and any project-specific label
+downstream — is ignored for state purposes. A ticket carrying only such labels is in
+the first row, exactly as if it had no labels at all; do not skip it as unrecognized.
+If a ticket somehow carries two lifecycle labels, treat the later state as
+authoritative, remove the earlier one, and note the inconsistency in the run summary.
 
-| Label | State | Action |
+| Lifecycle label | State | Action |
 |-------|-------|--------|
-| (none) | OPEN | Triage: validate ACs are clear and scoped. Apply `needs-arch-review`. |
+| none (no lifecycle label) | OPEN | Triage: validate ACs are clear and scoped. Apply `needs-arch-review`. |
 | `needs-arch-review` | NEEDS_REVIEW | Spawn the routed planner subagent (see Routing; defaults to **architect**) to review and post TDD plan. On completion, apply `arch-approved`, remove `needs-arch-review`. |
 | `arch-approved` | PLANNED | Spawn **dev** subagent to implement. On dispatch, apply `in-progress`, remove `arch-approved`. |
 | `in-progress` | IN_PROGRESS | Skip — dev is working. |
