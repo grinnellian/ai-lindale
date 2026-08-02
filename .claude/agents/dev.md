@@ -189,7 +189,8 @@ When multiple Dev dispatches are in flight on separate worktrees/branches:
    exact-match or directory-containment overlap up front (exit 1 = overlap,
    exit 0 = clear, exit 2 = usage error — which is not "clear"). Directories
    may be written with or without a trailing slash; surrounding whitespace,
-   duplicate slashes, and a leading `./` are normalized away; globs are NOT
+   duplicate slashes, and a leading `./` or `/` are normalized away (every
+   entry is read as repo-root-relative); globs are NOT
    expanded (the script prints a NOTE) — list real paths.
    Shared config files (`CLAUDE.md`, `templates/team-config.yml`,
    `package.json`) produce a warning rather than a hard block — expect a

@@ -19,13 +19,17 @@
 #   - Entries are separated by commas; newlines (and CRLF) are also accepted
 #     as separators, since file lists are often pasted line-per-path. A path
 #     containing a literal comma or newline therefore cannot be expressed.
-#   - Paths are compared literally after normalization (whitespace/"./"
-#     trim, duplicate- and trailing-slash collapse). No glob expansion, no
-#     case folding (SRC/a.ts != src/a.ts even on a case-insensitive
-#     filesystem), no ".." resolution, and no interior "/./" collapse
-#     (src/./a.ts != src/a.ts; only a *leading* "./" is stripped) -- give
-#     repo-relative paths as git prints them.
-#   - "." (or "./", "/") means the repo root and overlaps every path.
+#   - Paths are compared literally after normalization (whitespace trim,
+#     leading "./" and "/" strip, duplicate- and trailing-slash collapse).
+#     No glob expansion, no case folding (SRC/a.ts != src/a.ts even on a
+#     case-insensitive filesystem), no ".." resolution (../src/a.ts !=
+#     src/a.ts), and no interior "/./" collapse (src/./a.ts != src/a.ts;
+#     only *leading* "./" and "/" are stripped) -- give repo-relative paths
+#     as git prints them.
+#   - Every entry is read as repo-root-relative, so a leading "/" is an
+#     anchor, not an absolute filesystem path: "/src/a.ts" == "src/a.ts".
+#   - An entry that is only root punctuation (".", "./", "/") means the repo
+#     root itself and overlaps every path.
 
 set -uo pipefail
 
@@ -64,7 +68,11 @@ normalize() {
   #     compare " b.ts" against "b.ts")
   #   - collapse duplicate slashes ("src//a.ts" and "src/a.ts" are the same
   #     file)
-  #   - strip a leading "./" ("./src/a.ts" and "src/a.ts" are the same file)
+  #   - strip leading "./" and "/" ("./src/a.ts", "/src/a.ts" and "src/a.ts"
+  #     are the same file -- every entry is repo-root-relative, so a leading
+  #     slash is an anchor, not an absolute filesystem path). Stripping
+  #     interleaves the two forms so "/./src" also reduces to "src". ".." is
+  #     deliberately not resolved, so "../src" stays literal.
   #   - strip trailing slashes ("docs/" and "docs" are the same directory)
   #   - an entry that was only root punctuation (".", "./", "/") normalizes
   #     to "." -- the repo root -- rather than vanishing into the blank-entry
@@ -76,8 +84,12 @@ normalize() {
   while case "$p" in *//*) true ;; *) false ;; esac; do
     p="${p%%//*}/${p#*//}"
   done
-  while [ "$p" != "${p#./}" ]; do
-    p="${p#./}"
+  while :; do
+    case "$p" in
+      ./*) p="${p#./}" ;;
+      /*)  p="${p#/}" ;;
+      *)   break ;;
+    esac
   done
   while [ "$p" != "${p%/}" ]; do
     p="${p%/}"
