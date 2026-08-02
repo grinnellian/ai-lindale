@@ -139,8 +139,10 @@ TPM session (which has full Bash) then:
    the commit already exists
 5. `git push -u`
 6. `gh pr create` with the body the subagent drafted (passed back in its
-   return payload — instruct the subagent to *write* the PR body to a file
-   like `.claude/pr-body-<issue>.md` since it can't open the PR itself)
+   return payload — instruct the subagent to *write* the PR body to
+   `.claude/pr-body.md` since it can't open the PR itself; that path is the
+   one every other statement of this protocol names — dev.md, tpm.md's
+   dispatch quote, and the quote below)
 
 **Instruct subagents up front:** "Run `git commit` normally — this works from a
 worktree dispatch as of 2026-07-06. If `git push` or `gh` fails, commit
