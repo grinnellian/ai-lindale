@@ -113,8 +113,8 @@ if a Bash git operation actually fails in that run:
 > from a worktree dispatch. If `git push` or `gh` fails, commit locally, write your intended
 > PR body to `.claude/pr-body.md` inside the worktree, and return — the parent TPM session
 > will finalize the push and PR. If `git commit` itself unexpectedly fails, stage everything
-> with `git add`, write the intended commit message to `.claude/commit-msg.txt`, and return —
-> the TPM will finalize the commit too."
+> with `git add`, write the intended commit message to `.claude/commit-msg.txt` and the PR
+> body to `.claude/pr-body.md`, and return — the TPM will finalize the commit too."
 
 When the fallback is genuinely used (commit itself failed), the red/green split collapses
 into the single commit the TPM makes on the dev agent's behalf — dev.md's TDD section
