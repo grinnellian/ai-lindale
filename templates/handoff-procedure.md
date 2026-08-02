@@ -44,7 +44,10 @@ picked) by the client — it should read as "the state of the project," not
 ## Step 3: Framework Branch (Unmerged)
 
 Keep Framework-bucket content on its own branch (convention:
-`<owner>/devcontainer-setup` or similarly scoped name) that does **not**
+`<owner>/framework-handoff`, or a similarly scoped generic name — the
+BizTrip engagement this procedure was derived from used
+`<owner>/devcontainer-setup`, a name specific to that engagement's own
+tooling, not a convention to reuse verbatim) that does **not**
 merge into `main`. This branch preserves the agent configuration, memory,
 and any engagement-specific tooling used during the engagement so the next
 engagement can start from them, without polluting the client's `main` with
