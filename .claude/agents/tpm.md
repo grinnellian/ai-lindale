@@ -87,6 +87,16 @@ repo ships none of its own; see FEAT-011 and `docs/adoption-guide.md`):
 ### Anti-Deferral Rule
 If the user attempts to defer something that can be done now, push back. The user may not always know what is immediately actionable. Identify when a task is ready to execute and recommend doing it now rather than later.
 
+### Pre-dispatch overlap check (DX-012)
+
+Before fanning out two or more dev dispatches in parallel, run
+`scripts/check-file-overlap.sh "<files-a>" "<files-b>"` on the file lists each
+dispatch intends to touch (comma-separated; both arguments required — pass
+`""` for an intentionally empty list). Exit 1 = overlap, serialize the two
+tickets or re-scope them; exit 0 = clear; exit 2 = usage error, not "clear".
+Shared config files warn rather than block — expect a trivial rebase there.
+The full merge-ordering rules live in `dev.md` §"Merge Ordering Strategy".
+
 ### Dispatching dev subagents (BUG-006, narrowed as of 2026-07-06)
 
 BUG-006 (#77) originally claimed dev subagents launched with `isolation: "worktree"`

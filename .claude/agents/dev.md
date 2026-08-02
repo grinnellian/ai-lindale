@@ -16,8 +16,8 @@ skills:
 model: claude-sonnet-4-6
 isolation: worktree
 color: blue
-maxTurns: 200
 initialPrompt: /dev
+maxTurns: 200
 ---
 
 ## Sandbox Reminder
@@ -42,7 +42,7 @@ On activation — whether via `--agent dev` or `/dev` — before starting any wo
 1. CLAUDE.md is loaded automatically as project context; treat it as authoritative.
 2. Read `memory/MEMORY_INDEX.md`, then pull in the topic files it points to that are relevant to the work at hand (typically `patterns.md`, `decisions.md`) — check for known footguns (e.g. BUG-006, worktree isolation notes) before touching git.
 3. Check `.claude/agents/` for a project SME — consult it if the implementation touches domain-specific concerns.
-4. Confirm your current branch and worktree location (`git branch --show-current`) before editing.
+4. Confirm your current branch (`git branch --show-current`) and worktree location (`git rev-parse --show-toplevel`, or `git worktree list` to see them all) before editing.
 
 ### Prerequisites Before Starting Work
 - Confirm the Architect has accepted the ticket AND provided an implementation plan
@@ -62,6 +62,11 @@ The issue **description is the spec**, not the comment thread — read it as cur
   - Must **run** the tests and observe the failure before committing
 - **Green Phase**: Implement code to make tests pass, commit AND PUSH together with the red phase
   - Must **not** touch test files — implementation only
+  - If the red test turns out to be wrong, do **not** quietly fix it inside the green
+    commit — that is exactly how a test gets weakened until the implementation passes.
+    Stop, start a *new* red commit correcting the test (run it, observe the new
+    failure), then resume green. Same for shared fixtures/helpers and for the refactor
+    step of red/green/refactor: each gets its own commit, named for what it is.
 - This reduces CI failures and maintains clean commit history
 - Docs-only commits (e.g. `CLAUDE.md`, `memory/`) are excluded from the red/green cycle — commit them on their own
 - **BUG-006 fallback exception**: if `git commit` genuinely fails from your worktree and you
@@ -146,6 +151,13 @@ EPIC-004 (container-as-boundary); see CLAUDE.md's Security Boundary
 section. Nothing blocks a malformed branch name at the git level — running
 the validator is a convention you follow, not a wall that stops you.
 
+The convention and the validator apply to **issue branches only**. Branch
+families that exist outside the ticket lifecycle are exempt and will (by
+design) fail `validate-branch-name.sh`: `orchestrate/<date>` session
+branches, `worktree-agent-*` integration branches, `settle/*` review
+branches, and `main`. Don't "fix" them, and don't flag them when auditing
+branch names.
+
 ### Merge Ordering Strategy (Parallel Worktrees)
 
 When multiple Dev dispatches are in flight on separate worktrees/branches:
@@ -160,8 +172,12 @@ When multiple Dev dispatches are in flight on separate worktrees/branches:
    Do not resolve conflicts on someone else's branch.
 4. **Never merge overlapping branches without rebasing first.** Before
    dispatching parallel work, a TPM should run `scripts/check-file-overlap.sh
-   "<files-a>" "<files-b>"` (comma-separated paths) to catch exact-match or
-   directory-containment overlap up front (exit 1 = overlap, exit 0 = clear).
+   "<files-a>" "<files-b>"` (comma-separated paths; both arguments required,
+   pass `""` for an intentionally empty list) to catch exact-match or
+   directory-containment overlap up front (exit 1 = overlap, exit 0 = clear,
+   exit 2 = usage error — which is not "clear"). Directories may be written
+   with or without a trailing slash; surrounding whitespace and a leading
+   `./` are normalized away.
    Shared config files (`CLAUDE.md`, `templates/team-config.yml`,
    `package.json`) produce a warning rather than a hard block — expect a
    trivial rebase there, not a redesign.
