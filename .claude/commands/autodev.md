@@ -137,7 +137,7 @@ the escalation comment on every run.
 ## Rules
 
 - Dispatch independent planner reviews in parallel (the planner is `architect` unless `routing.planners` says otherwise — see Routing)
-- Before dispatching dev tickets in parallel, run `scripts/check-file-overlap.sh` on their intended file lists (DX-012, see `tpm.md`) — exit 1 means serialize them instead
+- Before dispatching dev tickets in parallel, run `scripts/check-file-overlap.sh` (or `.ai-lindale/scripts/check-file-overlap.sh` downstream) on their intended file lists (DX-012, see `tpm.md`) — exit 1 means serialize them instead
 - Respect ticket dependencies — don't start a ticket until its prerequisites are in `in-progress` or later
 - On human escalation: follow the Escalation Protocol (apply `needs-human`, post the structured comment, record it in the Memory tracker), then move to next ticket
 - On blocker: apply `blocked` label, comment context on the issue, move to next ticket

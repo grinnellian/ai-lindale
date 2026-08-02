@@ -150,7 +150,8 @@ aborted agent runs leave stale branch names behind (see `memory/patterns.md`
 worktree footguns).
 
 Validate a candidate name with `scripts/validate-branch-name.sh
-<branch-name>` (exit 0 valid, exit 2 invalid with a reason on stderr). This
+<branch-name>` (or `.ai-lindale/scripts/validate-branch-name.sh` in
+downstream projects; exit 0 valid, exit 2 invalid with a reason on stderr). This
 is an advisory script you or a TPM can run before/after `git checkout -b` —
 it is **not** a PreToolUse hook. Hook-based enforcement was retired under
 EPIC-004 (container-as-boundary); see CLAUDE.md's Security Boundary
@@ -182,7 +183,8 @@ When multiple Dev dispatches are in flight on separate worktrees/branches:
    Do not resolve conflicts on someone else's branch.
 4. **Never merge overlapping branches without rebasing first.** Before
    dispatching parallel work, a TPM should run `scripts/check-file-overlap.sh
-   "<files-a>" "<files-b>"` (comma- or newline-separated paths; both
+   "<files-a>" "<files-b>"` (or `.ai-lindale/scripts/check-file-overlap.sh`
+   in downstream projects; comma- or newline-separated paths; both
    arguments required, pass `""` for an intentionally empty list) to catch
    exact-match or directory-containment overlap up front (exit 1 = overlap,
    exit 0 = clear, exit 2 = usage error — which is not "clear"). Directories

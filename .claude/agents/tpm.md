@@ -90,7 +90,8 @@ If the user attempts to defer something that can be done now, push back. The use
 ### Pre-dispatch overlap check (DX-012)
 
 Before fanning out two or more dev dispatches in parallel, run
-`scripts/check-file-overlap.sh "<files-a>" "<files-b>"` on the file lists each
+`scripts/check-file-overlap.sh "<files-a>" "<files-b>"` (or
+`.ai-lindale/scripts/check-file-overlap.sh` in downstream projects) on the file lists each
 dispatch intends to touch (comma- or newline-separated; both arguments
 required — pass `""` for an intentionally empty list; globs are NOT expanded,
 list real paths). Exit 1 = overlap, serialize the two
