@@ -91,8 +91,9 @@ If the user attempts to defer something that can be done now, push back. The use
 
 Before fanning out two or more dev dispatches in parallel, run
 `scripts/check-file-overlap.sh "<files-a>" "<files-b>"` on the file lists each
-dispatch intends to touch (comma-separated; both arguments required — pass
-`""` for an intentionally empty list). Exit 1 = overlap, serialize the two
+dispatch intends to touch (comma- or newline-separated; both arguments
+required — pass `""` for an intentionally empty list; globs are NOT expanded,
+list real paths). Exit 1 = overlap, serialize the two
 tickets or re-scope them; exit 0 = clear; exit 2 = usage error, not "clear".
 Shared config files warn rather than block — expect a trivial rebase there.
 The full merge-ordering rules live in `dev.md` §"Merge Ordering Strategy".

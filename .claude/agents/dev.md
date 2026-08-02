@@ -172,12 +172,13 @@ When multiple Dev dispatches are in flight on separate worktrees/branches:
    Do not resolve conflicts on someone else's branch.
 4. **Never merge overlapping branches without rebasing first.** Before
    dispatching parallel work, a TPM should run `scripts/check-file-overlap.sh
-   "<files-a>" "<files-b>"` (comma-separated paths; both arguments required,
-   pass `""` for an intentionally empty list) to catch exact-match or
-   directory-containment overlap up front (exit 1 = overlap, exit 0 = clear,
-   exit 2 = usage error — which is not "clear"). Directories may be written
-   with or without a trailing slash; surrounding whitespace and a leading
-   `./` are normalized away.
+   "<files-a>" "<files-b>"` (comma- or newline-separated paths; both
+   arguments required, pass `""` for an intentionally empty list) to catch
+   exact-match or directory-containment overlap up front (exit 1 = overlap,
+   exit 0 = clear, exit 2 = usage error — which is not "clear"). Directories
+   may be written with or without a trailing slash; surrounding whitespace,
+   duplicate slashes, and a leading `./` are normalized away; globs are NOT
+   expanded (the script prints a NOTE) — list real paths.
    Shared config files (`CLAUDE.md`, `templates/team-config.yml`,
    `package.json`) produce a warning rather than a hard block — expect a
    trivial rebase there, not a redesign.

@@ -286,3 +286,13 @@ doesn't re-litigate them:
 - **juno team-config.yml**: real-world exemplar of a no-CI project (prose
   toolchain, Knowledge/ instead of memory/) — reference for adoption-guide
   examples.
+- **juno generic skill patterns — NOT yet landed** (FEAT-011 #91 non-goals
+  routing, flagged by the FEAT-011 review m3): issue #91 committed the two
+  generic patterns inside juno's project skills to this file "instead" of
+  porting the skills themselves — (1) per-file subagent commit-message
+  fan-out (from juno's `autocommit`), (2) gated intake → parallel design →
+  sequential implementation (juno's mission-design flow). Neither entry was
+  ever written, and they cannot be reconstructed faithfully without access
+  to the juno repo — this note records the debt explicitly so the routing
+  promise isn't silently lost. Next session with juno access: land the two
+  entries here, or note on #91 where they moved.

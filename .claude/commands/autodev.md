@@ -26,7 +26,10 @@ the project's `team-config.yml` (or `.claude/team-config.yml` downstream).
   look it up in `routing.planners`. Dispatch the named agent for the
   NEEDS_REVIEW step in place of `architect`. If `routing:` is absent, the
   prefix has no entry, or the value is `architect`, dispatch `architect` —
-  today's default behavior is unchanged.
+  today's default behavior is unchanged. Prefix matching is exact and
+  case-sensitive against the `PREFIX-NNN:` title convention; a ticket whose
+  title carries no recognizable prefix simply has no entry and defaults to
+  `architect` the same way.
 - **Reviewer fan-out:** during the REVIEW state, after the planner-of-record
   reviews the PR, match the PR's changed paths (`gh pr diff --name-only`)
   against each glob key in `routing.reviewers`. Dispatch the mapped agent for

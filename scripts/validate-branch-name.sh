@@ -49,6 +49,12 @@ fi
 TYPE="${BASH_REMATCH[1]}"
 PREFIX="${BASH_REMATCH[2]}"
 
+# This case table is the single source of truth for the allowed type/prefix
+# pairs (DX-012 review NIT-5). The regex above deliberately accepts any
+# [A-Z]+ prefix so unknown types fail *here* with a specific message rather
+# than the generic shape error. To add a prefix (DX-005 will eventually feed
+# this from project config): add one line below AND to the tpm.md prefix
+# list -- nothing else encodes the pairing.
 case "$TYPE" in
   feat) EXPECTED="FEAT" ;;
   fix) EXPECTED="BUG" ;;
