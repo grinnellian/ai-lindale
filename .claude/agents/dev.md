@@ -166,7 +166,8 @@ branches, the engagement-offboarding branches `templates/handoff-procedure.md`
 prescribes (`<owner>/client-handoff` Step 2, `<owner>/framework-handoff`
 Step 3, `<owner>/autodev-demo` Step 7), and `main`. Don't "fix" them, and
 don't flag them when auditing branch names.
-The list is the families this framework itself creates — a downstream project
+The list is the families that show up in this repo's own workflow (some cut by
+the framework, some by the Claude Code harness) — a downstream project
 with its own non-issue branch families should read it as a category (any
 branch not cut for a single ticket), not as an exhaustive whitelist.
 
