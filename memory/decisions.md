@@ -18,9 +18,18 @@
 
 ## Commit and push policy
 
-**Decision:** Agents should commit and push liberally on main.
+**Decision (original):** Agents should commit and push liberally on main.
 
 **Rationale:** So long as agents never force-push and stay in the working directory, the blast radius is minimal. Frequent commits reduce waste and keep work visible. No human approval needed for commit/push.
+
+**Amended 2026-07-07 (DX-027 review, MIN1):** the "on main" clause is stale.
+Ticket work now flows through issue branches and PRs with review gates: dev
+MUST NOT push to `main` (`.claude/agents/dev.md` Constraints), and TPM
+direct-commits only small doc/memory changes. Read the policy as **commit and
+push liberally on whatever branch you are legitimately on** — the liberality
+(no human approval per commit, no force-push, stay in the working directory)
+still holds; the branch target does not. This is the convention `tpm.md`'s
+Commit Cadence section points at.
 
 ## Greenfield vs brownfield adoption
 
@@ -217,3 +226,54 @@ enclosure/security framing for a beehive-adjacent art direction rather than
 a prison-adjacent one. Worth revisiting as a future branding/visual-identity
 option if "pod" ever needs a friendlier public-facing gloss, but not adopted
 now — "pod" better matches the k10s vocabulary already in use.
+
+## Commit-cadence enforcement mechanism (DX-027, 2026-07-07)
+
+**Decision:** Commit-early-and-often is enforced at two layers only —
+prompt-level cadence rules (`dev.md`'s TDD red/green contract, `tpm.md`'s
+Commit Cadence, with architect exempt) and the autodev review gate that
+rejects a monolithic commit for a multi-phase ticket. No hook and no
+commits-per-session metric.
+
+**Rationale:** issue #40 listed four *possible* mechanisms, not four
+requirements. Option 2 (PostToolUse hook) is architecturally moot — hook
+enforcement was retired in the EPIC-004 container-as-boundary pivot. Option 4
+(commits-per-session health metric) is deliberately dropped, not deferred:
+its only prospective consumer is AFK orchestration (FEAT-003), which is still
+open, and a metric with no consumer is noise. Recorded here because the
+renouncement previously lived only in a commit message and the PR #101 body
+(DX-027 review, MIN1).
+
+**Exception wired in:** when BUG-006's stage-and-return fallback genuinely
+applies, the red/green split collapses into one TPM-made commit; the gate
+must not bounce that. See `dev.md`'s BUG-006 fallback exception and the
+matching carve-out in `autodev.md`'s review-bar rule.
+
+## maxTurns tiers and the AC3 waiver (DX-029, 2026-07-07)
+
+**Decision:** every agent definition and agent-generating template carries a
+`maxTurns` ceiling: audit-repo 30, `templates/sme.md` 30, researcher 40,
+architect 50, tpm 100, dev 200.
+
+**Rationale:** the ordering is read-only-analysis < planning < orchestration <
+implementation. Read-heavy roles that neither dispatch nor write need the
+fewest turns; researcher sits above audit-repo because WebSearch/WebFetch
+round-trips cost turns; architect plans but does not implement; TPM
+orchestrates many dispatches; dev does the most tool-work per task. The values
+are uncalibrated first guesses — issue #47 says to calibrate from experience,
+so update them *here* when experience says otherwise rather than only in the
+frontmatter.
+
+**AC3 waived, not deferred:** the ticket asked for graceful exit with a
+summary at the cap. Claude Code documents `maxTurns` as "the maximum number of
+agentic turns before the subagent stops" — a hard stop, with no pre-cutoff
+hook that would let an agent emit what it accomplished. Nothing at the prompt
+or frontmatter layer can supply that, so the AC is unsatisfiable rather than
+unfinished. See `memory/patterns.md` §"maxTurns is a hard stop, not a graceful
+exit" for the operational note.
+
+**Not verified:** whether `maxTurns` caps a main interactive session launched
+with `--agent` (the docs address subagents only), and whether an
+`Agent()`-spawned subagent is actually cut off at its role's cap — asserted
+from the docs, never observed. `test-researcher-fixtures.sh` asserts only that
+`maxTurns:` is present, not its value, so the tiers above are not test-pinned.
