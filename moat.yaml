@@ -11,8 +11,10 @@
 #   moat run             # from the repo root
 #
 # The base image is published by CI (.github/workflows/pod-base-image.yml).
-# To use a locally built image instead: bash infra/pod-base/build.sh and point
-# base_image at ghcr.io/grinnellian/ai-lindale-pod-base:dev.
+# To use a locally built image instead: `bash infra/pod-base/build.sh` (tags
+# ghcr.io/grinnellian/ai-lindale-pod-base:dev) and build the root shim below
+# FROM that :dev tag. base_image itself must stay pointed at the shim — see
+# the M1 finding below on why moat needs a root-user base.
 
 name: lindale-dev
 agent: claude
@@ -36,18 +38,31 @@ dependencies: []
 # handles non-root bases, build the shim locally:
 #   printf 'FROM ghcr.io/grinnellian/ai-lindale-pod-base:edge\nUSER root\n' \
 #     | docker build -t ai-lindale-pod-base:moat-base -
-# The FROM line above requires a locally built pod-base image (or a docker
-# login with GHCR read access) — the ghcr.io/grinnellian/ai-lindale-pod-base
-# package is currently private, so an anonymous `docker build` of this shim
-# fails on a fresh host. Tracked as INFRA-016 (#100).
+# The :edge tag in the FROM line above is only pullable with a
+# `docker login ghcr.io` that has read access — the
+# ghcr.io/grinnellian/ai-lindale-pod-base package is currently private, so an
+# anonymous `docker build` of this shim fails on a fresh host. Tracked as
+# INFRA-016 (#100). Without GHCR access, build pod-base locally first
+# (`bash infra/pod-base/build.sh`, which tags :dev) and substitute that tag
+# in the FROM line — build.sh does not produce :edge, so the instruction
+# above must be adapted, not just preceded by a local build.
 base_image: ai-lindale-pod-base:moat-base
 
-# Runtime pin: podman is verified working (re-verified independently, see
-# #95) and Apple containers remain unable to run docker-in-docker, which
-# pod-base's build/smoke-test steps need — so `runtime` stays pinned rather
-# than left to auto-detect. Docker is not the only validated engine; revisit
-# this pin once the podman engine choice is finalized (FEAT-014, #94) and
-# upstream podman support lands (majorcontext/moat#435).
+# Runtime pin: docker and podman are both verified working against this
+# config (podman re-verified independently, see #95) — docker is not the only
+# validated engine. The pin exists because stock moat has no podman support
+# until majorcontext/moat#435 merges, and because auto-detect could land on an
+# engine nothing here has been exercised against; it is a predictability
+# choice, not a claim that the others cannot work. Revisit once the engine
+# decision is finalized (FEAT-014, #94) and #435 lands.
+#
+# (An earlier version of this comment justified the pin with "Apple containers
+# can't run docker-in-docker". Nothing in the repo substantiates a DinD
+# requirement: infra/pod-base/build.sh and smoke-test.sh run `docker build` /
+# `docker run` on the *host*, not inside the pod, and this config mounts no
+# docker socket — so no engine choice here grants the pod docker-in-docker.
+# Clause dropped rather than kept as an unexplained rationale, per the
+# EPIC-004 M1 review NIT-1.)
 runtime: docker
 
 grants:
