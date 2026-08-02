@@ -7,6 +7,7 @@ set -euo pipefail
 PASS=0
 FAIL=0
 TMPDIR_BASE=""
+TMPDIRS=()
 
 # Capture repo root BEFORE any cd operations
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -16,6 +17,9 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 setup_project() {
   # Create a temporary "downstream project" directory with a fake framework submodule
   TMPDIR_BASE=$(mktemp -d)
+  # Track every fixture dir: TMPDIR_BASE is overwritten per test, so removing
+  # only the last one at EXIT leaked one temp dir per setup_project call.
+  TMPDIRS+=("$TMPDIR_BASE")
   PROJECT="$TMPDIR_BASE/project"
   mkdir -p "$PROJECT"
   cd "$PROJECT"
@@ -60,9 +64,12 @@ EOF
 }
 
 teardown() {
-  if [ -n "$TMPDIR_BASE" ] && [ -d "$TMPDIR_BASE" ]; then
-    rm -rf "$TMPDIR_BASE"
-  fi
+  local d
+  for d in ${TMPDIRS[@]+"${TMPDIRS[@]}"}; do
+    if [ -n "$d" ] && [ -d "$d" ]; then
+      rm -rf "$d"
+    fi
+  done
 }
 trap teardown EXIT
 
