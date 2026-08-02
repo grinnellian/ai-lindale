@@ -12,11 +12,21 @@
 # Usage: check-file-overlap.sh <comma-separated-list-a> <comma-separated-list-b>
 # Exit 0: no overlap (or only shared-config warnings)
 # Exit 1: overlapping paths (exact match or directory containment)
+# Exit 2: usage error (wrong argument count)
 
 set -uo pipefail
 
-LIST_A="${1:-}"
-LIST_B="${2:-}"
+# Both lists are required, even if empty ("" is a valid empty list). A
+# dropped argument from a quoting mistake must not silently read as
+# "no overlap" -- that is the fail-unsafe direction for a safety check.
+if [ "$#" -ne 2 ]; then
+  echo "usage: $(basename "$0") <comma-separated-list-a> <comma-separated-list-b>" >&2
+  echo "  (pass \"\" for an intentionally empty list)" >&2
+  exit 2
+fi
+
+LIST_A="$1"
+LIST_B="$2"
 
 # Files commonly touched by multiple in-flight tickets (docs/config) --
 # report as a warning, not a hard block.

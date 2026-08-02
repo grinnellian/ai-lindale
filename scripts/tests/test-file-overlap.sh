@@ -104,6 +104,23 @@ test_one_empty_list() {
   [ "$rc" -eq 0 ]
 }
 
+test_missing_second_argument_is_usage_error() {
+  # DX-012 review NIT-4: a TPM quoting mistake that drops the second list
+  # must not read as "no overlap". Exit 2 (matching validate-branch-name.sh's
+  # non-zero convention) so a caller testing for 0 fails safe.
+  local rc
+  bash "$CHECKER" "src/a.ts" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 2 ]
+}
+
+test_no_arguments_is_usage_error() {
+  local rc
+  bash "$CHECKER" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 2 ]
+}
+
 test_shared_config_warns_not_blocks() {
   local out rc
   out=$(bash "$CHECKER" "CLAUDE.md,src/a.ts" "CLAUDE.md,src/b.ts")
@@ -137,6 +154,8 @@ run_test "./ prefixed directory containment -> exit 1" test_dot_slash_directory_
 run_test "empty lists -> exit 0" test_empty_lists
 run_test "whitespace-only list entry is ignored -> exit 0" test_whitespace_only_entry_is_ignored
 run_test "one empty list -> exit 0" test_one_empty_list
+run_test "missing second argument -> usage error, exit 2" test_missing_second_argument_is_usage_error
+run_test "no arguments -> usage error, exit 2" test_no_arguments_is_usage_error
 run_test "shared config file -> warning, exit 0" test_shared_config_warns_not_blocks
 run_test "team-config.yml overlap -> warning" test_shared_team_config_warns
 
