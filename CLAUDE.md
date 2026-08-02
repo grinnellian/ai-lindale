@@ -153,8 +153,17 @@ runs on every PR (`.github/workflows/ci.yml`) — is every suite under
 `scripts/tests/`:
 
 ```bash
-for t in scripts/tests/test-*.sh; do bash "$t"; done
+fail=0; for t in scripts/tests/test-*.sh; do echo "=== $t ==="; bash "$t" || fail=1; done; exit "$fail"
 ```
+
+Keep the `|| fail=1` aggregation (this is the same loop `.github/workflows/ci.yml`
+runs, and for the same reason): a bare `for t in ...; do bash "$t"; done` exits with
+the status of the *last* suite only, so a failure in any earlier suite reports green.
+Agents gate real decisions on this exit status — `dev.md` runs it before committing and
+`pr-refresh.md` refuses to push a rebase "on a red run" — and a red run that reports 0
+is the fail-unsafe direction for all of them. Run it from the repo root; a suite
+invoked from elsewhere resolves its fixture paths off `BASH_SOURCE`, but the glob
+above does not.
 
 There is no lint step. There is no root `team-config.yml`; `templates/team-config.yml`
 is the downstream template, and its `toolchain:` block is commented out.
