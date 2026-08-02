@@ -161,8 +161,12 @@ The convention and the validator apply to **issue branches only**. Branch
 families that exist outside the ticket lifecycle are exempt and will (by
 design) fail `validate-branch-name.sh`: `orchestrate/<date>` session
 branches, `worktree-agent-*` integration branches, `settle/*` review
-branches, and `main`. Don't "fix" them, and don't flag them when auditing
-branch names.
+branches, the engagement-offboarding branches `templates/handoff-procedure.md`
+prescribes (`<owner>/client-handoff`, `<owner>/framework-handoff`), and
+`main`. Don't "fix" them, and don't flag them when auditing branch names.
+The list is the families this framework itself creates — a downstream project
+with its own non-issue branch families should read it as a category (any
+branch not cut for a single ticket), not as an exhaustive whitelist.
 
 ### Merge Ordering Strategy (Parallel Worktrees)
 
