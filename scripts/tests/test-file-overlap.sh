@@ -73,6 +73,46 @@ test_dot_slash_prefix_input() {
   [ "$rc" -eq 1 ]
 }
 
+test_leading_slash_path_matches_bare_path() {
+  # Round-10 review: the header contract says "/" names the repo root, but
+  # only an entry that was *only* root punctuation was anchored there --
+  # "/scripts/install.sh" stayed literal and compared unequal to
+  # "scripts/install.sh", so a real overlap reported clean. Root-anchored
+  # is the natural reading of a leading slash for a repo-relative tool, and
+  # a false negative is the fail-unsafe direction for a safety check.
+  local rc
+  bash "$CHECKER" "/src/a.ts" "src/a.ts" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 1 ]
+}
+
+test_leading_slash_directory_containment() {
+  # Same normalization must compose with containment, not just exact match.
+  local rc
+  bash "$CHECKER" "/src/feature" "src/feature/handler.ts" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 1 ]
+}
+
+test_leading_slash_dot_mixed() {
+  # "/./src/a.ts" mixes both anchoring forms; stripping must interleave
+  # rather than run one pass of each.
+  local rc
+  bash "$CHECKER" "/./src/a.ts" "src/a.ts" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 1 ]
+}
+
+test_dotdot_still_not_resolved() {
+  # Guard against over-normalizing: ".." resolution is explicitly out of
+  # contract and must stay that way, so "../src/a.ts" keeps comparing
+  # literally rather than being anchored to the root.
+  local rc
+  bash "$CHECKER" "../src/a.ts" "src/a.ts" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 0 ]
+}
+
 test_dot_slash_directory_containment() {
   # Normalization must compose with containment, not just exact match.
   local rc
@@ -230,6 +270,10 @@ run_test "directory containment without trailing slash -> exit 1" test_directory
 run_test "comma-space separated input -> exit 1" test_comma_space_separated_input
 run_test "./ prefixed path matches bare path -> exit 1" test_dot_slash_prefix_input
 run_test "./ prefixed directory containment -> exit 1" test_dot_slash_directory_containment
+run_test "/ prefixed path matches bare path -> exit 1" test_leading_slash_path_matches_bare_path
+run_test "/ prefixed directory containment -> exit 1" test_leading_slash_directory_containment
+run_test "/./ mixed anchoring normalized -> exit 1" test_leading_slash_dot_mixed
+run_test ".. is still not resolved -> exit 0" test_dotdot_still_not_resolved
 run_test "empty lists -> exit 0" test_empty_lists
 run_test "whitespace-only list entry is ignored -> exit 0" test_whitespace_only_entry_is_ignored
 run_test "one empty list -> exit 0" test_one_empty_list
