@@ -69,6 +69,23 @@ bash scripts/sync.sh
 | Framework docs | Framework | Not exposed downstream | `.ai-lindale/docs/` |
 | Framework memory | Framework | Not exposed downstream | `.ai-lindale/memory/` |
 
+**Add these to your project's `.gitignore`.** `install.sh` does not write a
+`.gitignore` — it never edits files your project owns — so this is a manual
+one-time step:
+
+```gitignore
+.claude/commit-msg.txt
+.claude/pr-body.md
+```
+
+These are per-run handoff artifacts a dev subagent leaves in its worktree for
+the TPM to finalize a commit/PR from (the BUG-006 stage-and-return fallback).
+They are session state, not repo content. Without the ignore, the only thing
+keeping them out of a PR is the ordering the agent prompts prescribe (`git add`
+everything, *then* write the files), and any later `git add -A` — by the
+finalizing TPM, or by a subsequent dispatch reusing the worktree — commits them.
+The framework repo ignores them for the same reason.
+
 **Key insight:** The install boundary IS the context boundary. Only files symlinked into `.claude/` are visible to Claude Code at runtime. Framework internals (docs, memory, CLAUDE.md) stay in `.ai-lindale/` and don't bleed into your project's agent context.
 
 ## Claiming a Local Override
