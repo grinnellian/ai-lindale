@@ -49,12 +49,20 @@ fi
 TYPE="${BASH_REMATCH[1]}"
 PREFIX="${BASH_REMATCH[2]}"
 
-# This case table is the single source of truth for the allowed type/prefix
-# pairs (DX-012 review NIT-5). The regex above deliberately accepts any
-# [A-Z]+ prefix so unknown types fail *here* with a specific message rather
-# than the generic shape error. To add a prefix (DX-005 will eventually feed
-# this from project config): add one line below AND to the tpm.md prefix
-# list -- nothing else encodes the pairing.
+# This case table is the only *executable* encoding of the allowed
+# type/prefix pairs (DX-012 review NIT-5) -- when a prose copy disagrees with
+# it, this table wins. The regex above deliberately accepts any [A-Z]+ prefix
+# so unknown types fail *here* with a specific message rather than the
+# generic shape error.
+#
+# It is not, however, the only copy. Adding or renaming a prefix means
+# editing all of these together (DX-005 will eventually feed the set from
+# project config, collapsing the list):
+#   1. this case table
+#   2. the convention table in this file's own header, lines 6-13
+#   3. .claude/agents/dev.md "Branch Naming Convention (DX-012)" table
+#   4. CLAUDE.md "### Prefixes" list
+#   5. .claude/agents/tpm.md "Current prefixes:" line
 case "$TYPE" in
   feat) EXPECTED="FEAT" ;;
   fix) EXPECTED="BUG" ;;
