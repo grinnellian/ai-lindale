@@ -190,17 +190,26 @@ image — moat apt-installs its baseline layer (ca-certificates, gosu, xvfb…)
 with no `USER root` escape, and dev-in ends with `USER dev`. Interim: a local
 root shim (`FROM dev-in` + `USER root`, tagged `ai-lindale-dev-in:moat-base`)
 documented in moat.yaml. Long-term options: dev-in ships a `:root` build stage,
-or upstream moat learns to elevate for its build layer.
+or upstream moat learns to elevate for its build layer. (Both options are now
+tracked as INFRA-015, #98.)
 
-**Follow-ups (not yet done):**
+**Follow-ups (ticketed 2026-07-06, cross-refs appended 2026-07-07 per the
+EPIC-004 M1 review MIN-4 — the descriptions below are the original record):**
 - `git` over the moat proxy fails with CONNECT 407 (proxy auth) while `gh`
   works — blocks the L5 clone-inside-container story; needs a git credential
-  helper or proxy config in the moat github grant path.
+  helper or proxy config in the moat github grant path. → INFRA-013 (#96).
 - Network policy is permissive by default; the L3 strict allowlist
   (`network.policy: strict` + rules) still needs to be configured and tested.
+  → INFRA-014 (#97).
 - `moat.yaml` uses `dependencies: []` but moat still installs its own baseline
   apt layer + gh 2.40.0 (older than dev-in's) — harmless duplication, worth an
-  upstream issue.
+  upstream issue. → **Parked, no owning ticket yet** (EPIC-004 M1 review
+  MIN-3): the upstream issue against majorcontext/moat has not been filed and
+  the only other breadcrumb is a nit-list comment on the now-closed #95. Next
+  TPM pass should either file the upstream issue or open a small INFRA ticket
+  to carry it.
+- GHCR package visibility (the root-shim FROM pulls a private `:edge` tag) —
+  tracked as INFRA-016 (#100, needs-human).
 
 ## Pod naming decision (INFRA-012, 2026-07-06)
 

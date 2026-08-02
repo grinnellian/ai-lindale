@@ -64,8 +64,12 @@ docker run -it \
   ghcr.io/grinnellian/ai-lindale-pod-base:edge
 ```
 
-(The exact mount path and proxy port depend on your moat configuration; when
-the `lindale` CLI lands in M2 it wires this automatically via `moat run`.)
+(The exact mount path and proxy port depend on your moat configuration. For
+this repo the manual flow above is already wired: the root-level `moat.yaml`
+configures the agent, base image, and grants, so `moat run` from the repo
+root does all of this automatically — the `docker run` form remains the
+reference for what happens underneath, and the no-moat path. When the
+`lindale` CLI lands in M2 it will wrap the same `moat run` flow.)
 
 With no CA mounted the entrypoint is a no-op, so the image works identically
 with or without moat.

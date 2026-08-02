@@ -6,8 +6,12 @@
 # Overview for the container-as-boundary model.
 #
 # Usage:
-#   moat grant claude    # once per host (subscription OAuth or imported creds)
-#   moat grant github    # once per host (reuses gh CLI auth)
+#   moat grant claude    # once per host (subscription OAuth or imported creds;
+#                        # not durable — an imported local OAuth still needs an
+#                        # interactive `claude setup-token`, and a credential-
+#                        # store key rotation invalidates prior grants: re-grant
+#                        # when runs start failing auth. See #69/#95 notes.)
+#   moat grant github    # once per host (reuses gh CLI auth; same caveat)
 #   moat run             # from the repo root
 #
 # The base image is published by CI (.github/workflows/pod-base-image.yml).
