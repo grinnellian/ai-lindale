@@ -156,7 +156,7 @@ reaches for.
 
 | Role | Skills assigned | Rationale |
 |---|---|---|
-| `dev` | `simplify`, `verify` (+ `claude-api` on demand) | Cleanup pass before ready-for-review; build-and-run confirmation alongside the TDD red/green cycle. `claude-api` is invoked on demand rather than preloaded — its full content (~830K) blows the subagent prompt budget (see memory/reviews/pr-101/DX-024.md). |
+| `dev` | `simplify`, `verify` (+ `claude-api` on demand) | Cleanup pass before ready-for-review; build-and-run confirmation alongside the TDD red/green cycle. `claude-api` is invoked on demand rather than preloaded — preloading it was the suspected cause of researcher subagent dispatch failing at launch with "Prompt is too long" (see memory/reviews/pr-101/DX-024.md); dev never reproduced that failure but dropped the preload on the same evidence. |
 | `tpm` | `loop` | Recurring status/ticket-lifecycle checks while a session stays open. |
 | `architect` | `code-review` | Reviews existing diffs/code for correctness before planning against them; read-only in practice (no `--fix`), consistent with the architect's no-code-modification constraint. |
 | `researcher` | (`claude-api` on demand) | Invoked when a research question is specifically about Anthropic's own APIs/SDKs — on demand, not preloaded, for the same prompt-budget reason as `dev`. |
