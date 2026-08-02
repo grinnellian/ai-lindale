@@ -30,6 +30,13 @@ not as a substitute for either command's own review gate.
    `memory/patterns.md` are durable lore, not run state — consult them for
    conventions, not for which PRs are in flight. Note any PR that's
    untracked, merged, closed, or diverged from what memory expects.
+   If no tracker exists at all (first run in a repo, or `/pr-refresh`
+   invoked standalone without a prior `/autodev` pass), that is not an
+   error and not a reason to stop: treat the live `gh` queue as ground
+   truth, reconcile against ticket labels alone, and start a tracker for
+   this run at `memory/autodev-state-<today>.md` so the next run has one.
+   Say in the Phase 3 report that the run began with no tracked state, so
+   "untracked PR" counts aren't misread as drift.
 3. Recompute the cross-PR conflict matrix: for each pair of open PRs, check
    whether they touch overlapping files (`gh pr diff N --name-only`). Use this
    to classify each PR into the Tier 1/2/3 dispatch model already documented
