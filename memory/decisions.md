@@ -284,5 +284,8 @@ exit" for the operational note.
 **Not verified:** whether `maxTurns` caps a main interactive session launched
 with `--agent` (the docs address subagents only), and whether an
 `Agent()`-spawned subagent is actually cut off at its role's cap — asserted
-from the docs, never observed. `test-researcher-fixtures.sh` asserts only that
-`maxTurns:` is present, not its value, so the tiers above are not test-pinned.
+from the docs, never observed. Only one tier is test-pinned:
+`test-researcher-fixtures.sh` asserts `^maxTurns: 40$` for researcher (it used
+to assert mere presence, which would have passed on `maxTurns: 999999`). The
+other four agent files and `templates/sme.md` have no test asserting their
+values, so those can still be re-tiered or dropped silently.
