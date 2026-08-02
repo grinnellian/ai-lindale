@@ -54,9 +54,45 @@ test_directory_containment_no_trailing_slash() {
   [ "$rc" -eq 1 ]
 }
 
+test_comma_space_separated_input() {
+  # DX-012 review finding MINOR-1: a natural TPM dispatch list written with
+  # a space after the comma made " src/b.ts" != "src/b.ts", so a real
+  # overlap silently reported clean.
+  local rc
+  bash "$CHECKER" "src/a.ts, src/b.ts" "src/b.ts" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 1 ]
+}
+
+test_dot_slash_prefix_input() {
+  # DX-012 review finding MINOR-1: "./src/a.ts" and "src/a.ts" name the same
+  # file but compared unequal.
+  local rc
+  bash "$CHECKER" "./src/a.ts" "src/a.ts" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 1 ]
+}
+
+test_dot_slash_directory_containment() {
+  # Normalization must compose with containment, not just exact match.
+  local rc
+  bash "$CHECKER" "./src/feature/" "src/feature/handler.ts" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 1 ]
+}
+
 test_empty_lists() {
   local rc
   bash "$CHECKER" "" "" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 0 ]
+}
+
+test_whitespace_only_entry_is_ignored() {
+  # A trailing comma or a stray space between commas must not become an
+  # empty-string path that matches everything.
+  local rc
+  bash "$CHECKER" "src/a.ts, ,"  "src/b.ts" >/dev/null 2>&1
   rc=$?
   [ "$rc" -eq 0 ]
 }
@@ -95,7 +131,11 @@ run_test "no overlap between disjoint lists -> exit 0" test_no_overlap
 run_test "exact file overlap -> exit 1" test_exact_overlap
 run_test "directory containment -> exit 1" test_directory_containment
 run_test "directory containment without trailing slash -> exit 1" test_directory_containment_no_trailing_slash
+run_test "comma-space separated input -> exit 1" test_comma_space_separated_input
+run_test "./ prefixed path matches bare path -> exit 1" test_dot_slash_prefix_input
+run_test "./ prefixed directory containment -> exit 1" test_dot_slash_directory_containment
 run_test "empty lists -> exit 0" test_empty_lists
+run_test "whitespace-only list entry is ignored -> exit 0" test_whitespace_only_entry_is_ignored
 run_test "one empty list -> exit 0" test_one_empty_list
 run_test "shared config file -> warning, exit 0" test_shared_config_warns_not_blocks
 run_test "team-config.yml overlap -> warning" test_shared_team_config_warns
