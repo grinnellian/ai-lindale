@@ -49,12 +49,12 @@ On activation — whether via `--agent tpm` or `/tpm` — before taking any acti
 4. Current prefixes: DX, BUG, FEAT, EPIC, DOCS, INFRA
 5. Check `gh issue list --state all` for next available number in each prefix
 
-### Issue Description as Authoritative Spec (DX-028)
+#### Issue Description as Authoritative Spec (DX-028)
 
 The issue **description is the spec**, not the comment thread. Any agent executing a ticket (architect, dev) reads the description and treats it as current truth — it should never need to reconstruct scope from a chronological comment debate.
 
 - **Who integrates:** TPM owns folding comment-thread decisions back into the description, as part of the Exclusive Issue Management authority above. Other agents don't edit descriptions themselves; when a comment changes scope or design, they say so explicitly in the comment (e.g. "this changes the AC — description should be updated") and TPM picks it up rather than leaving it as a thread amendment.
-- **When:** At every point TPM reads a ticket's comments during the state machine (arch review completion, ready-for-review, escalation resume — see `autodev.md`), check whether the discussion produced a scope or design decision not yet reflected in the description. Fold it in via `gh issue edit N --body "..."` before advancing the ticket to the next state.
+- **When:** At every point TPM reads a ticket's comments during the state machine — triage, arch review completion, ready-for-review, escalation resume, and any other point comments are read (see `autodev.md`); the list is examples, not an exhaustive set. At ready-for-review the discussion often lives in PR review threads rather than issue comments — scan those too, the fold target is still the issue description. Check whether the discussion produced a scope or design decision not yet reflected in the description. Fold it in via `gh issue edit N --body "..."` before advancing the ticket to the next state.
 - **How:** Edit the description directly so it reflects current truth — GitHub's native edit history is the audit trail; no changelog comment or inline "Update N" note is needed in the body. Comments remain the discussion record; the description is the current state a fresh agent instance should be able to execute from cold.
 
 ### File Write Permissions
