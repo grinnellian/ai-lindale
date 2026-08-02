@@ -66,6 +66,25 @@ test_invalid_too_many_words() { assert_invalid "feat/FEAT-001-one-two-three-four
 test_invalid_epic_not_branchable() { assert_invalid "epic/EPIC-004-container-boundary"; }
 test_invalid_missing_ticket_number() { assert_invalid "dx/DX-branch-naming"; }
 
+# --- Usage errors ---
+
+# Sibling of test_missing_second_argument_is_usage_error in
+# test-file-overlap.sh (DX-012 review NIT-4): a caller that passes more
+# names than the script reads must not get a verdict that covers only the
+# first one. `validate-branch-name.sh "feat/FEAT-001-slug" "bogus-branch"`
+# used to exit 0 -- silently validating $1 and discarding $2, which reads as
+# "both are fine" to the caller that wrote the second name.
+test_extra_arguments_is_usage_error() {
+  local rc
+  bash "$VALIDATOR" "feat/FEAT-001-slug" "orchestrate/2026-07-06" >/dev/null 2>&1
+  rc=$?
+  if [ "$rc" -eq 2 ]; then
+    return 0
+  fi
+  echo "    Expected usage error (exit 2) for 2 arguments, got exit $rc"
+  return 1
+}
+
 echo "=== DX-012 Branch Naming Tests ==="
 echo ""
 run_test "valid: feat/FEAT-042-chart-rendering" test_valid_feat
@@ -83,6 +102,7 @@ run_test "invalid: master" test_invalid_master
 run_test "invalid: more than five words" test_invalid_too_many_words
 run_test "invalid: EPIC not branchable" test_invalid_epic_not_branchable
 run_test "invalid: missing ticket number" test_invalid_missing_ticket_number
+run_test "usage error: extra arguments -> exit 2" test_extra_arguments_is_usage_error
 
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="
