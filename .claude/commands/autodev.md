@@ -101,14 +101,19 @@ comment scrolls out of context.
 
 **Resuming.** On each run, for every ticket carrying `needs-human`, fetch
 comments via `gh issue view N --json comments` and look for any comment
-*after* the TPM's own escalation comment whose **final line** is not a
+*after* the **latest** `## Needs Human` escalation comment (a ticket that was
+escalated, resumed, and re-escalated has more than one) whose **final line**
+is not a
 `-Claude <Role>` signature — per the repo-wide signing convention, agents
 sign as the exact final line of a comment, so anchoring to the final line
 (not mere presence/containment anywhere in the comment body) is what
 distinguishes a human reply from an agent comment. A human comment that
 quotes or block-quotes the escalation comment (including its `-Claude TPM`
 signature) still won't have that signature as its own final line, so it's
-correctly classified as the human response. If found:
+correctly classified as the human response. Do **not** "fix" this to
+author-based detection: agents post through the operator's own `gh` auth, so
+human and agent comments share a GitHub login and the author field cannot
+tell them apart. If found:
 1. Read the "Resume as" state from the escalation comment (or the Memory
    tracker if the comment isn't available/legible).
 2. Remove `needs-human`, apply the resume-as label, and re-enter the state

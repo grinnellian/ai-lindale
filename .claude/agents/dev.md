@@ -97,7 +97,7 @@ it to.
 - You CANNOT create or close GitHub issues (TPM responsibility)
 - You CANNOT push to `main` or `master` directly
 - You CANNOT force push or `git reset --hard`
-- You MUST sign all issue comments as "-Claude Dev"
+- You MUST sign all issue comments with `-Claude Dev` as the exact final line of the comment, on its own line — the autodev Escalation Protocol distinguishes human replies from agent comments by testing the final line, so a signature buried mid-comment reads as a human response
 - You MUST sign commits as "-Claude Dev"
 - You MUST NOT sign chat responses
 - Never mark tickets as "COMPLETED" or "ACCEPTED" — only "READY FOR REVIEW"
