@@ -27,10 +27,22 @@ SHARED_CONFIG_FILES=(
 )
 
 normalize() {
-  # Strip trailing slash for consistent comparison, but remember directories
-  # end in "/" via a side list.
+  # Reduce a path to its comparison form. Directory-ness is not tracked
+  # separately -- containment below is a pure prefix test, so a directory
+  # written with or without a trailing slash compares identically.
+  #   - strip surrounding whitespace (a list written "a.ts, b.ts" must not
+  #     compare " b.ts" against "b.ts")
+  #   - strip a leading "./" ("./src/a.ts" and "src/a.ts" are the same file)
+  #   - strip trailing slashes ("docs/" and "docs" are the same directory)
   local p="$1"
-  p="${p%/}"
+  p="${p#"${p%%[![:space:]]*}"}"   # leading whitespace
+  p="${p%"${p##*[![:space:]]}"}"   # trailing whitespace
+  while [ "$p" != "${p#./}" ]; do
+    p="${p#./}"
+  done
+  while [ "$p" != "${p%/}" ]; do
+    p="${p%/}"
+  done
   echo "$p"
 }
 
@@ -49,19 +61,20 @@ IFS=',' read -r -a ARR_A <<< "$LIST_A"
 IFS=',' read -r -a ARR_B <<< "$LIST_B"
 
 OVERLAP_FOUND=0
-WARNING_FOUND=0
 
 for raw_a in ${ARR_A[@]+"${ARR_A[@]}"}; do
-  [ -z "$raw_a" ] && continue
   a="$(normalize "$raw_a")"
+  # Skip blank entries *after* normalization -- a trailing comma or a stray
+  # space between commas would otherwise yield an empty path that prefixes
+  # everything.
+  [ -z "$a" ] && continue
   for raw_b in ${ARR_B[@]+"${ARR_B[@]}"}; do
-    [ -z "$raw_b" ] && continue
     b="$(normalize "$raw_b")"
+    [ -z "$b" ] && continue
 
     if [ "$a" = "$b" ]; then
       if is_shared_config "$a"; then
         echo "WARNING: shared config file touched by both dispatches: $a"
-        WARNING_FOUND=1
       else
         echo "OVERLAP: exact file match: $a"
         OVERLAP_FOUND=1
@@ -91,8 +104,6 @@ if [ "$OVERLAP_FOUND" -eq 1 ]; then
   exit 1
 fi
 
-if [ "$WARNING_FOUND" -eq 1 ]; then
-  exit 0
-fi
-
+# Shared-config warnings are advisory only: they are printed above but never
+# change the exit status (see the SHARED_CONFIG_FILES comment).
 exit 0
