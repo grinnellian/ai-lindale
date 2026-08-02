@@ -9,3 +9,11 @@
 # git checkouts and shouldn't be tracked from the main tree, but ignore
 # explicitly in case of accidental staging.
 .claude/worktrees/
+
+# BUG-006 stage-and-return fallback artifacts (dev.md / tpm.md / patterns.md):
+# per-run handoff files a dev subagent leaves in its worktree for the TPM to
+# finalize from. They are session state, not repo content — ignore them so a
+# stray `git add -A` after they're written can't commit them into a PR.
+.claude/commit-msg.txt
+.claude/pr-body.md
+.claude/pr-body-*.md
