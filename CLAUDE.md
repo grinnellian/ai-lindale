@@ -30,7 +30,13 @@ Each role is defined in `.claude/agents/<role>.md` — that file is the source o
 
 ### Conventions
 - Issue titles use prefix format: `PREFIX-NNN: Title` (e.g., `DX-001: ...`)
-- Agents sign issue comments with their role (e.g., "-Claude TPM")
+- Agents sign issue comments with their role (e.g., "-Claude TPM") as the
+  **exact final line** of the comment, on its own line. The final line is
+  load-bearing, not stylistic: `autodev.md`'s Escalation Protocol tells human
+  replies apart from agent comments by testing it (author metadata can't —
+  agents post through the operator's own `gh` auth), so a signature buried
+  mid-comment reads as a human response and resumes a ticket that nobody
+  answered.
 - Agents do NOT sign chat responses
 
 ### Branch Naming (DX-012)
