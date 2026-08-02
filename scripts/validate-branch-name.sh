@@ -20,18 +20,30 @@
 # (container-as-boundary); see CLAUDE.md's Security Boundary section.
 #
 # Usage: validate-branch-name.sh <branch-name>
+#        (exactly one argument; a name containing whitespace must be quoted)
 # Exit 0: valid
-# Exit 2: invalid (message on stderr)
+# Exit 2: invalid, or a usage error (message on stderr)
 
 set -uo pipefail
 
-BRANCH="${1:-}"
-
 fail() {
-  echo "invalid branch name: $BRANCH" >&2
+  echo "invalid branch name: ${BRANCH:-}" >&2
   echo "  reason: $1" >&2
   exit 2
 }
+
+# Exactly one name per invocation. Extra arguments used to be discarded
+# silently, so `validate-branch-name.sh "$a" "$b"` validated only "$a" and
+# exited 0 -- which the caller that wrote "$b" reads as "both are fine".
+# Same fail-unsafe direction, and the same remedy, as the argc guard in the
+# sibling script check-file-overlap.sh.
+if [ "$#" -ne 1 ]; then
+  echo "usage: $(basename "$0") <branch-name>" >&2
+  echo "  (exactly one name per invocation; quote names containing spaces)" >&2
+  exit 2
+fi
+
+BRANCH="$1"
 
 if [ -z "$BRANCH" ]; then
   fail "no branch name provided"
