@@ -72,7 +72,9 @@ The issue **description is the spec**, not the comment thread — read it as cur
 - **BUG-006 fallback exception**: if `git commit` genuinely fails from your worktree and you
   fall back to stage-and-return (see "If You Are Running as a Subagent" below), the red/green
   split collapses into the single staged change the TPM commits on your behalf. Note this in
-  your return summary — it is the necessary consequence of not being able to commit twice from
+  your return summary **and leave `.claude/commit-msg.txt` in the worktree** — that file is
+  the artifact the `autodev.md` gate checks; without it a single commit is indistinguishable
+  from a plain monolithic one and will be bounced. It is the necessary consequence of not being able to commit twice from
   a worktree you can't commit from at all, not a violation of this contract. The orchestrator
   reviewing at the DX-027 gate (`autodev.md`) should treat this case as the documented exception,
   not a monolithic-commit blocker.
@@ -122,7 +124,11 @@ normal, then write the PR body to `.claude/pr-body.md` inside the worktree and r
 summary — the dispatching TPM finalizes push and `gh pr create`. Do not retry the failing
 push; do not self-post issue comments — return the full comment text so the TPM can post it
 (`gh ... --body-file -`). If `git commit` itself unexpectedly fails, fall back fully to
-stage-and-return and apply the BUG-006 fallback exception above.
+stage-and-return: `git add` everything, write the intended commit message to
+`.claude/commit-msg.txt` inside the worktree (the TPM commits with it, and its presence is
+also how the `autodev.md` review gate verifies the fallback genuinely applied rather than
+taking your word for it), write the PR body to `.claude/pr-body.md`, and return — then apply
+the BUG-006 fallback exception above.
 
 ### Branch Naming Convention (DX-012)
 
