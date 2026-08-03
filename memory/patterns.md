@@ -71,11 +71,24 @@ future operator gets that "this file is intentionally not upstream."
 
 ## Subagent finalization — TPM picks up where dev drops
 
-**Problem:** dev subagents dispatched via the Agent tool with `isolation:
+**Update (2026-07-06, DX-037 review): the commit-failure claim below is stale.**
+This orchestration wave dispatched 15 worktree dev agents that all committed via
+`Bash` (`git commit`) without failure — `Write`/`Edit` also worked, as expected
+since they never depended on the bugs below. `git push` and `gh` (PR creation,
+issue comments) remain **untested** in this mode and should still be treated
+with the caution the historical evidence below establishes. Read the section
+below as "originally observed for commit/push/gh; commit is now known-good,
+push/gh unconfirmed either way" rather than as current-state truth for `git
+commit` specifically. See `.claude/agents/tpm.md` §"Dispatching dev subagents"
+and `.claude/agents/dev.md`'s TDD section for the narrowed workaround.
+
+**Problem (original, historical):** dev subagents dispatched via the Agent tool with `isolation:
 "worktree"` reliably fail on `Bash`, `Write`, and `Edit` calls even though their
 agent definition grants all three. Repro'd 6× on BUG-007 (#78), 4× downstream;
 tracked locally as BUG-006 (#77). **Confirmed Claude Code platform constraint**,
-not a Lindalë frontmatter issue.
+not a Lindalë frontmatter issue — at the time this was written. Do not assume
+this reproduces on `git commit` today; verify push/gh before relying on this
+section for those.
 
 **Upstream tracker (anthropics/claude-code):**
 - #37730 — subagents don't inherit `settings.local.json`; worktree path doesn't
@@ -107,29 +120,41 @@ and hits the bugs above. This is why catalyst-build's manual `/dev` workflow
 succeeds while TPM-driven `/autodev` dispatch fails on the same agent
 definition.
 
-**Real fix:** EPIC-004 dev-in containers — sidesteps worktree dispatch
+**Real fix:** EPIC-004 pod containers (pod-base, INFRA-012) — sidesteps worktree dispatch
 entirely. Heavier parallelization cost than worktrees but unblocks dev work
 under the current Claude Code platform.
 
-**Pattern:** **dev subagent stages, TPM finalizes.** Expect the subagent's
-return payload to contain *staged but unpushed* work. The parent TPM session
-(which has full Bash) then:
+**Pattern, narrowed (2026-07-06): dev subagent commits, TPM finalizes push/PR.**
+Expect the subagent's return payload to contain a *committed* change (per the
+2026-07-06 evidence above) that is not yet pushed or opened as a PR. The parent
+TPM session (which has full Bash) then:
 
 1. `cd` into the subagent's worktree path (returned in the agent result)
-2. Inspect the staged diff (`git status`, `git diff --cached`)
+2. Inspect the commit(s) (`git log`, `git show`) — or, if the subagent fell
+   back to stage-and-return because `git commit` itself failed for it, the
+   staged diff (`git status`, `git diff --cached`) instead
 3. Run lint/build/test if needed
-4. `git commit` (preserving the subagent's intended message), `git push -u`
-5. `gh pr create` with the body the subagent drafted (passed back in its
-   return payload — instruct the subagent to *write* the PR body to a file
-   like `.claude/pr-body-<issue>.md` since it can't open the PR itself)
+4. `git commit` only if step 2 found staged-not-committed work (preserving the
+   subagent's intended message from `.claude/commit-msg.txt`); otherwise skip —
+   the commit already exists
+5. `git push -u`
+6. `gh pr create` with the body the subagent drafted (passed back in its
+   return payload — instruct the subagent to *write* the PR body to
+   `.claude/pr-body.md` since it can't open the PR itself; that path is the
+   one every other statement of this protocol names — dev.md, tpm.md's
+   dispatch quote, and the quote below)
 
-**Instruct subagents up front:** "You may not be able to run `git commit` /
-`git push` / `gh` from the worktree. If those fail, stage all changes, write
-the intended commit message to `.claude/commit-msg.txt` and the PR body to
-`.claude/pr-body.md` inside the worktree, then return — TPM will finalize."
+**Instruct subagents up front:** "Run `git commit` normally — this works from a
+worktree dispatch as of 2026-07-06. If `git push` or `gh` fails, commit
+locally, write the PR body to `.claude/pr-body.md` inside the worktree, and
+return — TPM will finalize the push and PR. If `git commit` itself
+unexpectedly fails, fall back fully: stage everything, write the intended
+commit message to `.claude/commit-msg.txt` and the PR body to
+`.claude/pr-body.md`, then return — TPM will finalize the commit too."
 
-This is a workaround, not the desired shape. When BUG-006 is resolved
-upstream, the workaround retires.
+This is a workaround for the push/gh half, not the desired end shape (the
+commit half may no longer need one at all). When BUG-006 is fully resolved or
+disproven upstream, retire whatever workaround remains.
 
 ## Worktree footguns
 
@@ -159,12 +184,46 @@ refinements adopted mid-wave".
 under `.claude/worktrees/` containing dangling relative-symlink hooks; dev
 servers with glob-tracking watchers (e.g. Turbopack) crash on them. Prune
 orphaned worktrees (`git worktree prune` + delete the directory) as part of
-dispatch cleanup. See also DX-034 (#80) on moving worktrees out of `.claude/`.
+dispatch cleanup.
+
+**DX-034 (#80) findings: worktree location under `.claude/` is a Claude Code
+harness default, not a Lindalë-configured path.** `dev.md`'s frontmatter only
+sets `isolation: worktree` — it never specifies a directory — and no committed
+`.claude/settings.json` or CLI flag exposes a worktree-base-path knob (`claude
+--help` shows `-w/--worktree` with no path option). Confirmed empirically: a
+dev subagent's own working directory lands at `.claude/worktrees/agent-<id>/`
+with no Lindalë config driving that choice. The permission-prompt noise on
+every worktree op is therefore harness behavior Lindalë cannot relocate from
+agent definitions, `CLAUDE.md`, or `settings.json` today. What *is*
+Lindalë-controlled: documenting the constraint (here and in `dev.md`) and
+routine pruning of orphaned worktrees so the directory doesn't accumulate
+stale state. If Claude Code ever exposes a worktree-base-path setting, revisit
+this note and wire it up; until then, treat DX-034 as blocked on upstream
+rather than fixable in this repo.
 
 **Stash hygiene across detached-HEAD switches.** A stash created before
 switching branches/worktrees in detached-HEAD state is easy to strand. Pop or
 apply the stash before the next switch; never leave a dispatch with a dirty
 stash.
+
+## maxTurns is a hard stop, not a graceful exit (DX-029)
+
+**Platform-level limitation, not prompt-enforceable.** DX-029 added `maxTurns` to
+every agent's frontmatter (and, per the DX-029 review, `templates/sme.md`) as a
+runaway ceiling. AC3 of that ticket asked for graceful behavior on limit reached
+("summary + exit, not hard kill"). Verified against the live Claude Code
+subagent frontmatter reference (see `memory/reviews/pr-101/DX-029.md`): the
+documented semantics are "Maximum number of agentic turns before the subagent
+stops" — a stop, full stop. There is no prompt-level hook that fires before the
+cutoff to let an agent emit "what was accomplished and what remains"; the
+harness owns the cutoff and the agent gets no final turn to summarize.
+
+**Disposition:** treat AC3 as waived at the platform level, not deferred as an
+implementation gap. Keep setting `maxTurns` everywhere (including
+TPM-generated SME agents) as a ceiling against insanity loops — it still does
+that job — but don't design future work around an assumed graceful-exit
+callback that the platform doesn't expose. If Claude Code ever adds a
+pre-cutoff hook, revisit this note.
 
 ## Git/GitHub operational lore (harvested from catalyst-build)
 
@@ -229,6 +288,16 @@ doesn't re-litigate them:
 - **juno team-config.yml**: real-world exemplar of a no-CI project (prose
   toolchain, Knowledge/ instead of memory/) — reference for adoption-guide
   examples.
+- **juno generic skill patterns — NOT yet landed** (FEAT-011 #91 non-goals
+  routing, flagged by the FEAT-011 review m3): issue #91 committed the two
+  generic patterns inside juno's project skills to this file "instead" of
+  porting the skills themselves — (1) per-file subagent commit-message
+  fan-out (from juno's `autocommit`), (2) gated intake → parallel design →
+  sequential implementation (juno's mission-design flow). Neither entry was
+  ever written, and they cannot be reconstructed faithfully without access
+  to the juno repo — this note records the debt explicitly so the routing
+  promise isn't silently lost. Next session with juno access: land the two
+  entries here, or note on #91 where they moved.
 
 ## Worktree branch collision on review-fix cycles (FEAT-018 run, 2026-07-20)
 

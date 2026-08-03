@@ -18,6 +18,21 @@ Design principle: **observable by default, autonomous when desired.** The downst
 
 Each role is defined in `.claude/agents/<role>.md` — that file is the source of truth for the role's description, tool access, and constraints. See agent files for details.
 
+## How iri drives sessions (TPM-as-orchestrator)
+
+iri usually works "TPM-as-orchestrator" but deliberately invokes Claude
+raw (no `--agent tpm` / lindale persona): the personas exist as a
+teaching artifact and for downstream installs; for framework
+development itself, iri trusts direct capability and wants
+issue-tracker discipline without role theater. Adopt the TPM posture
+voluntarily — GitHub issues as source of truth, `PREFIX-NNN` numbering
+(verify the next number before filing), sign issue comments
+"-Claude TPM" (never sign chat), dispatch fan-out subagents for
+surveys, file tickets for larger work and direct-commit small
+doc/memory changes to main. PRs get squash-merged; full-autonomy grants
+include merging own PRs. Session-durable state goes in the repo's
+`memory/` files and issue comments, never only in conversation.
+
 ## Issue Conventions
 
 ### Prefixes
@@ -30,8 +45,25 @@ Each role is defined in `.claude/agents/<role>.md` — that file is the source o
 
 ### Conventions
 - Issue titles use prefix format: `PREFIX-NNN: Title` (e.g., `DX-001: ...`)
-- Agents sign issue comments with their role (e.g., "-Claude TPM")
+- Agents sign issue comments with their role (e.g., "-Claude TPM") as the
+  **exact final line** of the comment, on its own line. The final line is
+  load-bearing, not stylistic: `autodev.md`'s Escalation Protocol tells human
+  replies apart from agent comments by testing it (author metadata can't —
+  agents post through the operator's own `gh` auth), so a signature buried
+  mid-comment reads as a human response and resumes a ticket that nobody
+  answered.
 - Agents do NOT sign chat responses
+
+### Branch Naming (DX-012)
+
+Issue branches follow `<type>/<PREFIX>-<NNN>-<short-description>` (e.g.
+`dx/DX-012-branch-naming`, `feat/FEAT-042-chart-rendering`,
+`fix/BUG-017-null-transit`). EPIC issues are not branchable — decompose
+into sub-issues first. See `.claude/agents/dev.md` for the full
+convention, `scripts/validate-branch-name.sh` for validation, and
+`scripts/check-file-overlap.sh` plus the Merge Ordering Strategy in
+`dev.md` for coordinating parallel worktree dispatches. These are
+advisory scripts, not PreToolUse hooks — see Security Boundary above.
 
 ## File Structure
 
@@ -42,28 +74,47 @@ ai-lindale/
 ├── .claude/
 │   ├── agents/            # Agent definitions (frontmatter + system prompts)
 │   │   ├── architect.md
+│   │   ├── audit-repo.md
 │   │   ├── dev.md
+│   │   ├── researcher.md
 │   │   └── tpm.md
 │   ├── commands/          # Slash commands that invoke agents
 │   │   ├── architect.md
+│   │   ├── audit-repo.md
 │   │   ├── autodev.md     # TPM-driven ticket lifecycle orchestration
 │   │   ├── dev.md
+│   │   ├── handoff.md     # Engagement handoff walkthrough
+│   │   ├── pr-refresh.md  # Open-PR queue reconciliation and rebase
+│   │   ├── researcher.md
 │   │   └── tpm.md
 │   └── settings.local.json
 ├── docs/
-│   └── adoption-guide.md  # Downstream adoption guide
+│   ├── adoption-guide.md  # Downstream adoption guide
+│   ├── faq.md
+│   ├── pod.md             # Pod (the container agents live and work in) image docs
+│   └── roadmap.md
+├── infra/
+│   └── pod-base/          # Dockerfile + build assets for the pod container image
 ├── memory/
 │   ├── MEMORY_INDEX.md    # Index of all topic files
 │   └── *.md               # Topic-scoped memory files
+├── moat.yaml              # moat run configuration (EPIC-004 credential injection)
 ├── scripts/
-│   ├── install.sh         # Downstream install via git submodule
-│   ├── sync.sh            # Downstream sync/update helper
+│   ├── check-file-overlap.sh    # Pre-dispatch file-overlap detection (DX-012)
+│   ├── install.sh                # Downstream install via git submodule
+│   ├── sync.sh                   # Downstream sync/update helper
+│   ├── validate-branch-name.sh   # Branch naming convention validator (DX-012)
 │   └── tests/
-│       └── test-adoption.sh
+│       └── *.sh                  # Test suites for scripts/ and adoption tooling
 └── templates/
-    ├── sme.md             # Meta-template for TPM-generated domain SME
-    ├── sme-bootstrap.md   # Bootstrap procedure for SME generation
-    └── team-config.yml    # Role overrides and project customization
+    ├── CLAUDE.md                            # Downstream CLAUDE.md scaffold
+    ├── handoff-procedure.md                 # Engagement handoff procedure
+    ├── skill.md                             # Starting skeleton for a project skill
+    ├── sme.md                               # Meta-template for TPM-generated domain SME
+    ├── sme-bootstrap.md                     # Bootstrap procedure for SME generation
+    ├── standardization-playbook.md          # Brownfield standardization playbook template
+    ├── standardization-playbook-bootstrap.md
+    └── team-config.yml                      # Role overrides and project customization
 ```
 
 ## Security Boundary
@@ -73,6 +124,13 @@ ai-lindale/
 Optional layers on top:
 - **Sandbox mode** — session-level filesystem/network boundaries when running on bare metal
 - **Worktree isolation** — Dev agent works in a separate git worktree (workspace hygiene, not security)
+
+## Escalation Protocol
+
+Agents self-resolve first, then escalate to a peer (dev → architect, architect → TPM, any → SME) before
+involving a human — see each role's "Blocker Detection and Escalation" section in `.claude/agents/`. The
+human tier (`needs-human`/`blocked` labels, structured comment, resume protocol) is fully specified in
+`.claude/commands/autodev.md` under "Escalation Protocol (DX-030)".
 
 ## Memory
 
@@ -95,9 +153,38 @@ Agent memory lives in `memory/` within the repo — never in `~/.claude/` or out
 
 The guard rails: `maxTurns` (DX-029) provides a hard ceiling, but agents should self-regulate well before hitting it.
 
+### Chfirm (check + confirm)
+
+**Chfirm** *(v., operator coinage)*: a deliberate double-check performed as engineering practice, not out of doubt. When an agent (or a human) reports success, chfirming means independently verifying the claim before building on it — run the command yourself, read the diff, hit the endpoint, check the paper trail.
+
+Apply it at trust boundaries: before merging a subagent's work, before closing a ticket on a claimed fix, before a state-changing operation that rests on someone else's evidence, and especially when a report says "done" faster than expected. The verifier should not be the author — a session grading its own homework is not a chfirm. Exemplar: the 2026-07-06 podman claim (moat fork reported the hard floor holding; a second session rebuilt the images and reran the check independently before it was accepted — see #95).
+
+Chfirming a true claim costs minutes; trusting a false one costs the audit trail.
+
 ## Development Workflow
 
-This repo develops the framework itself. To test changes:
+**Toolchain.** This repo has no package manager and no build step. The test
+command — the one agents mean by "run the project's tests", and the gate CI
+runs on every PR (`.github/workflows/ci.yml`) — is every suite under
+`scripts/tests/`:
+
+```bash
+fail=0; for t in scripts/tests/test-*.sh; do echo "=== $t ==="; bash "$t" || fail=1; done; exit "$fail"
+```
+
+Keep the `|| fail=1` aggregation (this is the same loop `.github/workflows/ci.yml`
+runs, and for the same reason): a bare `for t in ...; do bash "$t"; done` exits with
+the status of the *last* suite only, so a failure in any earlier suite reports green.
+Agents gate real decisions on this exit status — `dev.md` runs it before committing and
+`pr-refresh.md` refuses to push a rebase "on a red run" — and a red run that reports 0
+is the fail-unsafe direction for all of them. Run it from the repo root; a suite
+invoked from elsewhere resolves its fixture paths off `BASH_SOURCE`, but the glob
+above does not.
+
+There is no lint step. There is no root `team-config.yml`; `templates/team-config.yml`
+is the downstream template, and its `toolchain:` block is commented out.
+
+To develop the framework itself:
 1. Modify agent definitions in `.claude/agents/`
 2. Launch with `claude --agent tpm` (or `./lindale` when available)
 3. Use `/autodev` in a TPM tab to run the full ticket lifecycle end-to-end
@@ -111,6 +198,29 @@ This repo develops the framework itself. To test changes:
 Agents are defined, adoption tooling (`scripts/install.sh`, `scripts/sync.sh`) works. See issue tracker for ongoing
 work.
 
-**Architecture:** Container-as-boundary with vendored [moat](https://github.com/majorcontext/moat) for credential
-injection. Previous hook-based enforcement was retired — see [Architecture Overview](../../wiki/Architecture-Overview)
-and EPIC-004 (#69) for the pivot rationale. See [ACKNOWLEDGMENTS](ACKNOWLEDGMENTS.md) for upstream attribution.
+**Architecture:** Container-as-boundary with [moat](https://github.com/majorcontext/moat) (pinned binary, vendoring
+deferred to M3) for credential injection. Previous hook-based enforcement was retired — see
+[Architecture Overview](../../wiki/Architecture-Overview) and EPIC-004 (#69) for the pivot rationale. See
+[ACKNOWLEDGMENTS](ACKNOWLEDGMENTS.md) for upstream attribution.
+
+## Where project state lives
+
+**Milestones (GitHub):** [M0 Housekeeping](https://github.com/grinnellian/ai-lindale/milestone/1),
+[M1 Moat Foundation](https://github.com/grinnellian/ai-lindale/milestone/2),
+[M2 lindale CLI](https://github.com/grinnellian/ai-lindale/milestone/3),
+[M3 k10s MVP](https://github.com/grinnellian/ai-lindale/milestone/4). M1 is the current critical path;
+M0 runs in parallel.
+
+**Wiki (authoritative for narrative state):**
+- [Roadmap](../../wiki/Roadmap) — milestone breakdown and sequencing
+- [Vision](../../wiki/Vision) — what Lindalë is for ("safe for the native vibecoder")
+- [Architecture Overview](../../wiki/Architecture-Overview) — the stack
+- [Architecture Decisions](../../wiki/Architecture-Decisions) — ADRs (numbered, append-only)
+- [Operator's Guide](../../wiki/Operators-Guide) — for humans driving the team (intentionally not in `docs/`)
+- [Tech Tree](../../wiki/Tech-Tree), [Issue Map](../../wiki/Issue-Map) — dependency graph and grouped backlog
+
+**In-repo (authoritative for working state):** `memory/decisions.md`, `memory/patterns.md`, `memory/vision.md` —
+agent-readable. New architectural decisions land in `memory/decisions.md` first; promote to a wiki ADR when stable.
+
+**TPMs: when status questions arise, check milestones and the wiki Roadmap first.** Don't recreate roadmap content
+in-repo — keep `docs/` for adoption-facing material (install, troubleshooting), wiki for direction and reasoning.

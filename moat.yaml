@@ -1,0 +1,74 @@
+# moat.yaml — Lindalë self-dev configuration (EPIC-004 L3, M1: Moat Foundation)
+#
+# Runs Claude Code inside the pod-base container with credentials injected at
+# the network layer by moat's TLS-intercepting proxy. Tokens never enter the
+# container environment — see docs/pod.md and the wiki Architecture
+# Overview for the container-as-boundary model.
+#
+# Usage:
+#   moat grant claude    # once per host (subscription OAuth or imported creds;
+#                        # not durable — an imported local OAuth still needs an
+#                        # interactive `claude setup-token`, and a credential-
+#                        # store key rotation invalidates prior grants: re-grant
+#                        # when runs start failing auth. See #69/#95 notes.)
+#   moat grant github    # once per host (reuses gh CLI auth; same caveat)
+#   moat run             # from the repo root
+#
+# The base image is published by CI (.github/workflows/pod-base-image.yml).
+# To use a locally built image instead: `bash infra/pod-base/build.sh` (tags
+# ghcr.io/grinnellian/ai-lindale-pod-base:dev) and build the root shim below
+# FROM that :dev tag. base_image itself must stay pointed at the shim — see
+# the M1 finding below on why moat needs a root-user base.
+
+name: lindale-dev
+agent: claude
+interactive: true
+
+# pod-base already ships git/gh/node/python/claude, so moat's default
+# dependency set would be duplicate or downgraded tooling on top of what the
+# base image already provides. Empty list = trust the base image for these
+# tools; it does not skip moat's own baseline apt layer, which still runs
+# regardless of this setting (see the M1 finding below on why that layer
+# needs a root shim, and the upstream nit tracked from #95 on the
+# duplication itself).
+dependencies: []
+
+# pod-base provides Claude Code, gh, git, node, python on Ubuntu 24.04 —
+# moat layers its own user/entrypoint infrastructure on top.
+#
+# M1 finding (2026-07-06): moat's base_image contract requires a ROOT-user
+# image (it apt-installs its baseline layer with no `USER root` escape), but
+# pod-base ends with `USER dev`. Until pod-base ships a root variant or moat
+# handles non-root bases, build the shim locally:
+#   printf 'FROM ghcr.io/grinnellian/ai-lindale-pod-base:edge\nUSER root\n' \
+#     | docker build -t ai-lindale-pod-base:moat-base -
+# The :edge tag in the FROM line above is only pullable with a
+# `docker login ghcr.io` that has read access — the
+# ghcr.io/grinnellian/ai-lindale-pod-base package is currently private, so an
+# anonymous `docker build` of this shim fails on a fresh host. Tracked as
+# INFRA-016 (#100). Without GHCR access, build pod-base locally first
+# (`bash infra/pod-base/build.sh`, which tags :dev) and substitute that tag
+# in the FROM line — build.sh does not produce :edge, so the instruction
+# above must be adapted, not just preceded by a local build.
+base_image: ai-lindale-pod-base:moat-base
+
+# Runtime pin: docker and podman are both verified working against this
+# config (podman re-verified independently, see #95) — docker is not the only
+# validated engine. The pin exists because stock moat has no podman support
+# until majorcontext/moat#435 merges, and because auto-detect could land on an
+# engine nothing here has been exercised against; it is a predictability
+# choice, not a claim that the others cannot work. Revisit once the engine
+# decision is finalized (FEAT-014, #94) and #435 lands.
+#
+# (An earlier version of this comment justified the pin with "Apple containers
+# can't run docker-in-docker". Nothing in the repo substantiates a DinD
+# requirement: infra/pod-base/build.sh and smoke-test.sh run `docker build` /
+# `docker run` on the *host*, not inside the pod, and this config mounts no
+# docker socket — so no engine choice here grants the pod docker-in-docker.
+# Clause dropped rather than kept as an unexplained rationale, per the
+# EPIC-004 M1 review NIT-1.)
+runtime: docker
+
+grants:
+  - claude
+  - github
