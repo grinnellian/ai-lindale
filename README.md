@@ -22,27 +22,43 @@ ai-lindale/
 ├── .claude/
 │   ├── agents/                      # Role definitions (frontmatter + system prompts)
 │   │   ├── architect.md
+│   │   ├── audit-repo.md
 │   │   ├── dev.md
+│   │   ├── researcher.md
 │   │   └── tpm.md
 │   ├── commands/                    # Slash commands that invoke agents
 │   │   ├── architect.md
+│   │   ├── audit-repo.md
 │   │   ├── autodev.md               # TPM-driven ticket lifecycle orchestration
 │   │   ├── dev.md
+│   │   ├── handoff.md               # Engagement handoff walkthrough
+│   │   ├── pr-refresh.md            # Open-PR queue reconciliation and rebase
+│   │   ├── researcher.md
 │   │   └── tpm.md
 │   └── settings.local.json
 ├── docs/
-│   └── adoption-guide.md
+│   ├── adoption-guide.md
+│   ├── faq.md
+│   ├── pod.md                        # Pod (the container agents live and work in) image docs
+│   └── roadmap.md
+├── infra/
+│   └── pod-base/                     # Dockerfile + build assets for the pod container image
 ├── memory/
 │   ├── MEMORY_INDEX.md
 │   └── decisions.md
 ├── scripts/
 │   ├── install.sh
 │   ├── sync.sh
-│   └── tests/test-adoption.sh
+│   ├── validate-branch-name.sh
+│   ├── check-file-overlap.sh
+│   └── tests/*.sh
 ├── templates/
 │   ├── sme.md                         # Meta-template for TPM-generated domain SME
 │   ├── sme-bootstrap.md               # Bootstrap procedure for SME generation
+│   ├── handoff-procedure.md
+│   ├── standardization-playbook.md
 │   └── team-config.yml
+├── moat.yaml                         # moat run configuration (EPIC-004 credential injection)
 ├── CLAUDE.md
 └── README.md
 ```
@@ -95,7 +111,15 @@ See [docs/adoption-guide.md](docs/adoption-guide.md) for the full guide includin
 
 ## Roadmap
 
-See [docs/roadmap.md](docs/roadmap.md) for the full roadmap — origin story, current state, and where we're headed.
+Project direction, milestones, and decisions live on the [wiki](https://github.com/grinnellian/ai-lindale/wiki):
+
+- [Roadmap](https://github.com/grinnellian/ai-lindale/wiki/Roadmap) — milestones (M0–M3), current state, and where we're headed
+- [Vision](https://github.com/grinnellian/ai-lindale/wiki/Vision) — what Lindalë is for
+- [Architecture Overview](https://github.com/grinnellian/ai-lindale/wiki/Architecture-Overview) — the stack and how the pieces fit
+- [Architecture Decisions](https://github.com/grinnellian/ai-lindale/wiki/Architecture-Decisions) — ADRs and the reasoning behind them
+- [Operator's Guide](https://github.com/grinnellian/ai-lindale/wiki/Operators-Guide) — for humans driving the agent team
+
+Active work is tracked in [GitHub milestones](https://github.com/grinnellian/ai-lindale/milestones) and the [Issue Map](https://github.com/grinnellian/ai-lindale/wiki/Issue-Map).
 
 ## Related
 

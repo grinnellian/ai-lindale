@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1
-# Lindalë dev-in base image (INFRA-011, EPIC-004 L4).
+# Lindalë pod-base image (INFRA-011, EPIC-004 L4). A pod is the sealed,
+# self-sufficient container an agent lives and works in.
 #
 # The container IS the security boundary: Claude Code runs inside with full
 # permissions, and moat injects credentials at the network layer so tokens
@@ -11,7 +12,7 @@
 #
 # Moat CA: moat generates a per-host CA, so it CANNOT be baked into a
 # published image. The entrypoint trusts a CA mounted at /run/moat/moat-ca.crt
-# (override path with MOAT_CA_CERT). See docs/dev-in.md.
+# (override path with MOAT_CA_CERT). See docs/pod.md.
 
 FROM ubuntu:24.04
 
@@ -54,8 +55,8 @@ RUN userdel -r ubuntu 2>/dev/null || true \
     && echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev \
     && chmod 440 /etc/sudoers.d/dev
 
-COPY entrypoint.sh /usr/local/bin/dev-in-entrypoint
-RUN chmod 755 /usr/local/bin/dev-in-entrypoint
+COPY entrypoint.sh /usr/local/bin/pod-base-entrypoint
+RUN chmod 755 /usr/local/bin/pod-base-entrypoint
 
 USER dev
 WORKDIR /home/dev
@@ -74,5 +75,5 @@ RUN git config --global safe.directory '*' \
 RUN mkdir -p /home/dev/work
 WORKDIR /home/dev/work
 
-ENTRYPOINT ["/usr/local/bin/dev-in-entrypoint"]
+ENTRYPOINT ["/usr/local/bin/pod-base-entrypoint"]
 CMD ["bash"]

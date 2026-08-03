@@ -7,6 +7,7 @@ set -euo pipefail
 PASS=0
 FAIL=0
 TMPDIR_BASE=""
+TMPDIRS=()
 
 # Capture repo root BEFORE any cd operations
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -16,6 +17,9 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 setup_project() {
   # Create a temporary "downstream project" directory with a fake framework submodule
   TMPDIR_BASE=$(mktemp -d)
+  # Track every fixture dir: TMPDIR_BASE is overwritten per test, so removing
+  # only the last one at EXIT leaked one temp dir per setup_project call.
+  TMPDIRS+=("$TMPDIR_BASE")
   PROJECT="$TMPDIR_BASE/project"
   mkdir -p "$PROJECT"
   cd "$PROJECT"
@@ -24,11 +28,11 @@ setup_project() {
   # Simulate the framework submodule at .ai-lindale/
   FRAMEWORK="$PROJECT/.ai-lindale"
   mkdir -p "$FRAMEWORK/.claude/agents" "$FRAMEWORK/.claude/commands" "$FRAMEWORK/scripts" "$FRAMEWORK/templates"
-  for agent in architect tpm dev; do
-    cp "$REPO_ROOT/.claude/agents/${agent}.md" "$FRAMEWORK/.claude/agents/${agent}.md"
+  for agent_file in "$REPO_ROOT"/.claude/agents/*.md; do
+    cp "$agent_file" "$FRAMEWORK/.claude/agents/$(basename "$agent_file")"
   done
-  for cmd in architect tpm dev; do
-    cp "$REPO_ROOT/.claude/commands/${cmd}.md" "$FRAMEWORK/.claude/commands/${cmd}.md"
+  for cmd_file in "$REPO_ROOT"/.claude/commands/*.md; do
+    cp "$cmd_file" "$FRAMEWORK/.claude/commands/$(basename "$cmd_file")"
   done
 
   # Copy templates
@@ -38,12 +42,34 @@ setup_project() {
   # Copy install.sh
   cp "$REPO_ROOT/scripts/install.sh" "$FRAMEWORK/scripts/install.sh"
   chmod +x "$FRAMEWORK/scripts/install.sh"
+
+  # Skills directory exists on the framework side but ships empty by
+  # default (FEAT-011: skills are project-owned unless the framework
+  # itself ships one).
+  mkdir -p "$FRAMEWORK/.claude/skills"
+}
+
+# Helper: add a fake framework-shipped skill (FEAT-011).
+# Args: $1 = skill name
+setup_framework_skill() {
+  local name="$1"
+  mkdir -p "$FRAMEWORK/.claude/skills/${name}"
+  cat > "$FRAMEWORK/.claude/skills/${name}/SKILL.md" << EOF
+---
+name: ${name}
+description: fake framework-shipped skill for testing
+---
+# ${name}
+EOF
 }
 
 teardown() {
-  if [ -n "$TMPDIR_BASE" ] && [ -d "$TMPDIR_BASE" ]; then
-    rm -rf "$TMPDIR_BASE"
-  fi
+  local d
+  for d in ${TMPDIRS[@]+"${TMPDIRS[@]}"}; do
+    if [ -n "$d" ] && [ -d "$d" ]; then
+      rm -rf "$d"
+    fi
+  done
 }
 trap teardown EXIT
 
@@ -128,6 +154,50 @@ test_command_symlinks() {
   for cmd in architect tpm dev; do
     assert_symlink ".claude/commands/${cmd}.md" "../../.ai-lindale/.claude/commands/${cmd}.md"
   done
+}
+
+test_all_framework_commands_symlinked() {
+  # BUG-008: install.sh must not hardcode the command list — every *.md file
+  # present in the framework's .claude/commands/ (including autodev.md and
+  # any future additions) must get symlinked downstream.
+  setup_project
+  bash "$FRAMEWORK/scripts/install.sh"
+  local cmd_file base
+  for cmd_file in "$FRAMEWORK"/.claude/commands/*.md; do
+    base=$(basename "$cmd_file")
+    assert_symlink ".claude/commands/${base}" "../../.ai-lindale/.claude/commands/${base}" || return 1
+  done
+  # Explicitly assert autodev.md specifically, since that's the reported bug.
+  assert_symlink ".claude/commands/autodev.md" "../../.ai-lindale/.claude/commands/autodev.md"
+}
+
+test_all_framework_agents_symlinked() {
+  # BUG-009: install.sh must not hardcode the agent list — every *.md file
+  # present in the framework's .claude/agents/ (including researcher.md and
+  # audit-repo.md) must get symlinked downstream.
+  setup_project
+  bash "$FRAMEWORK/scripts/install.sh"
+  local agent_file base
+  for agent_file in "$FRAMEWORK"/.claude/agents/*.md; do
+    base=$(basename "$agent_file")
+    assert_symlink ".claude/agents/${base}" "../../.ai-lindale/.claude/agents/${base}" || return 1
+  done
+  # Explicitly assert researcher.md and audit-repo.md, since those are the
+  # reported bug.
+  assert_symlink ".claude/agents/researcher.md" "../../.ai-lindale/.claude/agents/researcher.md" &&
+  assert_symlink ".claude/agents/audit-repo.md" "../../.ai-lindale/.claude/agents/audit-repo.md"
+}
+
+test_project_agent_override_preserved() {
+  # BUG-007 skip path must apply to non-core agents too: a downstream project
+  # can name its own SME the same as a framework agent (e.g. researcher.md),
+  # and install.sh must not clobber it.
+  setup_project
+  mkdir -p .claude/agents
+  echo "# Project-specific researcher SME" > .claude/agents/researcher.md
+  bash "$FRAMEWORK/scripts/install.sh"
+  assert_file_not_symlink ".claude/agents/researcher.md" &&
+  assert_file_contains ".claude/agents/researcher.md" "Project-specific researcher SME"
 }
 
 test_preserves_project_files() {
@@ -403,6 +473,260 @@ test_guide_documents_local_override() {
   assert_file_contains "$REPO_ROOT/docs/adoption-guide.md" "local override"
 }
 
+# --- skills tests (FEAT-011) ---
+
+test_skills_dir_scaffolded() {
+  setup_project
+  bash "$FRAMEWORK/scripts/install.sh"
+  if [ ! -d ".claude/skills" ]; then
+    echo "    .claude/skills/ directory was not created"
+    return 1
+  fi
+  return 0
+}
+
+test_framework_skill_symlinked() {
+  setup_project
+  setup_framework_skill "autocommit"
+  bash "$FRAMEWORK/scripts/install.sh"
+  assert_symlink ".claude/skills/autocommit" "../../.ai-lindale/.claude/skills/autocommit"
+}
+
+test_project_skill_not_touched() {
+  setup_project
+  mkdir -p .claude/skills/my-skill
+  echo "# project-owned skill" > .claude/skills/my-skill/SKILL.md
+  bash "$FRAMEWORK/scripts/install.sh"
+  if [ -L ".claude/skills/my-skill" ]; then
+    echo "    Should NOT be a symlink: .claude/skills/my-skill"
+    return 1
+  fi
+  assert_file_contains ".claude/skills/my-skill/SKILL.md" "project-owned skill"
+}
+
+test_no_framework_skills_no_crash() {
+  setup_project
+  # No framework skills exist (default) — install.sh must not error.
+  bash "$FRAMEWORK/scripts/install.sh" > /dev/null
+  if [ ! -d ".claude/skills" ]; then
+    echo "    .claude/skills/ directory missing after run with no framework skills"
+    return 1
+  fi
+  return 0
+}
+
+test_framework_skill_override_skipped() {
+  setup_project
+  setup_framework_skill "autocommit"
+  mkdir -p .claude/skills/autocommit
+  echo "# local skill override" > .claude/skills/autocommit/SKILL.md
+  bash "$FRAMEWORK/scripts/install.sh"
+  if [ -L ".claude/skills/autocommit" ]; then
+    echo "    Should NOT be a symlink: .claude/skills/autocommit (local override present)"
+    return 1
+  fi
+  assert_file_contains ".claude/skills/autocommit/SKILL.md" "local skill override"
+}
+
+test_skills_idempotent() {
+  setup_project
+  setup_framework_skill "autocommit"
+  bash "$FRAMEWORK/scripts/install.sh"
+  bash "$FRAMEWORK/scripts/install.sh"
+  assert_symlink ".claude/skills/autocommit" "../../.ai-lindale/.claude/skills/autocommit"
+}
+
+test_guide_documents_skills() {
+  assert_file_contains "$REPO_ROOT/docs/adoption-guide.md" ".claude/skills"
+}
+
+test_skill_template_exists() {
+  assert_file_exists "$REPO_ROOT/templates/skill.md"
+}
+
+# FEAT-011 review finding M1: a stale symlink pointing at an *existing
+# directory* (the skills case -- skills are directory symlinks, unlike the
+# file symlinks used for agents/commands) must be replaced outright by the
+# refresh path, not dereferenced into. `ln -sf` on such a destination
+# creates the new link *inside* the stale target instead of replacing it,
+# so the installer would falsely report "refreshed" while leaving the old
+# (wrong) symlink in place and depositing a stray link inside the old
+# target directory.
+test_skill_stale_dir_symlink_refreshed_correctly() {
+  setup_project
+  setup_framework_skill "autocommit"
+  bash "$FRAMEWORK/scripts/install.sh"
+
+  # Replace the correct skill symlink with one pointing at a *different*,
+  # still-existing directory (simulating a stale target from before a path
+  # restructure -- see install.sh's INFRA-001 note).
+  rm ".claude/skills/autocommit"
+  mkdir -p "old-framework/.claude/skills/autocommit"
+  echo "stale" > "old-framework/.claude/skills/autocommit/SKILL.md"
+  ln -s "../../old-framework/.claude/skills/autocommit" ".claude/skills/autocommit"
+
+  bash "$FRAMEWORK/scripts/install.sh" > /dev/null
+
+  # The symlink itself must now point at the correct, current framework
+  # skill -- not still resolve to the stale target.
+  assert_symlink ".claude/skills/autocommit" "../../.ai-lindale/.claude/skills/autocommit" || return 1
+
+  # The stale target directory must not have been polluted with a stray
+  # symlink deposited inside it by a dereferencing `ln -sf`.
+  if [ -e "old-framework/.claude/skills/autocommit/autocommit" ]; then
+    echo "    Stale target directory was polluted with a stray symlink (ln -sf dereference bug)"
+    return 1
+  fi
+  return 0
+}
+
+# Companion assertion: file symlinks (agents/commands) are not affected by
+# the directory-symlink dereference bug, since `ln -sf` replaces a symlink
+# pointing at an existing *file* correctly.
+test_agent_stale_file_symlink_refreshed_correctly() {
+  setup_project
+  bash "$FRAMEWORK/scripts/install.sh"
+  rm ".claude/agents/architect.md"
+  echo "# stale target" > "old-target-file.md"
+  ln -s "../../old-target-file.md" ".claude/agents/architect.md"
+  bash "$FRAMEWORK/scripts/install.sh" > /dev/null
+  assert_symlink ".claude/agents/architect.md" "../../.ai-lindale/.claude/agents/architect.md"
+}
+
+# FEAT-011 review finding m2 (test gap): the `[ -d ]` guard around the
+# skills glob was never exercised, because setup_project unconditionally
+# creates the fixture's framework skills directory -- which also diverges
+# from the real framework repo, where .claude/skills/ does not exist at all.
+test_absent_framework_skills_dir_no_crash() {
+  setup_project
+  rmdir "$FRAMEWORK/.claude/skills"
+  bash "$FRAMEWORK/scripts/install.sh" > /dev/null
+  if [ ! -d ".claude/skills" ]; then
+    echo "    .claude/skills/ must still be scaffolded when the framework ships none"
+    return 1
+  fi
+  # Agents/commands must still have been linked -- an absent skills dir is
+  # not allowed to abort the run.
+  assert_symlink ".claude/agents/architect.md" "../../.ai-lindale/.claude/agents/architect.md"
+}
+
+# FEAT-011 review finding m2 (test gap): --force against a project-owned
+# skill *directory* colliding with a framework skill runs `rm -rf` on a real
+# directory -- new territory, since before FEAT-011 only regular files ever
+# reached that branch.
+test_force_replaces_project_owned_skill_directory() {
+  setup_project
+  setup_framework_skill "autocommit"
+  mkdir -p .claude/skills/autocommit/nested
+  echo "# local skill override" > .claude/skills/autocommit/SKILL.md
+  echo "local" > .claude/skills/autocommit/nested/extra.md
+
+  bash "$FRAMEWORK/scripts/install.sh" --force > /dev/null
+
+  assert_symlink ".claude/skills/autocommit" "../../.ai-lindale/.claude/skills/autocommit" || return 1
+  # The framework skill must be what resolves now, not the local content.
+  assert_file_contains ".claude/skills/autocommit/SKILL.md" "fake framework-shipped skill" || return 1
+  if [ -e ".claude/skills/autocommit/nested" ]; then
+    echo "    Local skill directory contents survived --force (rm -rf did not happen)"
+    return 1
+  fi
+  return 0
+}
+
+# --- standardization playbook tests (DX-025) ---
+
+test_standardization_playbook_template_exists() {
+  assert_file_exists "$REPO_ROOT/templates/standardization-playbook.md"
+}
+
+test_standardization_playbook_bootstrap_exists() {
+  assert_file_exists "$REPO_ROOT/templates/standardization-playbook-bootstrap.md"
+}
+
+test_standardization_playbook_has_phases() {
+  local tmpl="$REPO_ROOT/templates/standardization-playbook.md"
+  assert_file_contains "$tmpl" "Foundation" &&
+  assert_file_contains "$tmpl" "Tests" &&
+  assert_file_contains "$tmpl" "Security" &&
+  assert_file_contains "$tmpl" "Code Quality" &&
+  assert_file_contains "$tmpl" "Infrastructure"
+}
+
+test_standardization_playbook_has_priorities() {
+  local tmpl="$REPO_ROOT/templates/standardization-playbook.md"
+  assert_file_contains "$tmpl" "P0" &&
+  assert_file_contains "$tmpl" "P1" &&
+  assert_file_contains "$tmpl" "P2"
+}
+
+test_standardization_playbook_has_depends_on() {
+  assert_file_contains "$REPO_ROOT/templates/standardization-playbook.md" "Depends on"
+}
+
+test_standardization_playbook_has_guiding_principles() {
+  assert_file_contains "$REPO_ROOT/templates/standardization-playbook.md" "Guiding Principles"
+}
+
+test_standardization_bootstrap_has_gh_issue_create() {
+  assert_file_contains "$REPO_ROOT/templates/standardization-playbook-bootstrap.md" "gh issue create"
+}
+
+test_standardization_bootstrap_has_brownfield() {
+  assert_file_contains "$REPO_ROOT/templates/standardization-playbook-bootstrap.md" "brownfield"
+}
+
+test_tpm_references_standardization_bootstrap() {
+  assert_file_contains "$REPO_ROOT/.claude/agents/tpm.md" "standardization-playbook-bootstrap.md"
+}
+
+test_guide_references_standardization_playbook_output() {
+  assert_file_contains "$REPO_ROOT/docs/adoption-guide.md" "standardization-playbook.md"
+}
+
+# --- handoff procedure tests (FEAT-013) ---
+
+test_handoff_procedure_template_exists() {
+  assert_file_exists "$REPO_ROOT/templates/handoff-procedure.md"
+}
+
+test_handoff_command_exists() {
+  assert_file_exists "$REPO_ROOT/.claude/commands/handoff.md"
+}
+
+test_handoff_procedure_has_buckets() {
+  local tmpl="$REPO_ROOT/templates/handoff-procedure.md"
+  assert_file_contains "$tmpl" "Client" &&
+  assert_file_contains "$tmpl" "Successor" &&
+  assert_file_contains "$tmpl" "Framework" &&
+  assert_file_contains "$tmpl" "Working-copy"
+}
+
+test_handoff_procedure_has_branch_conventions() {
+  local tmpl="$REPO_ROOT/templates/handoff-procedure.md"
+  assert_file_contains "$tmpl" "client-handoff" &&
+  assert_file_contains "$tmpl" "unmerged"
+}
+
+test_handoff_procedure_has_gitignore_guidance() {
+  assert_file_contains "$REPO_ROOT/templates/handoff-procedure.md" ".gitignore"
+}
+
+test_handoff_procedure_has_signing_convention() {
+  assert_file_contains "$REPO_ROOT/templates/handoff-procedure.md" "Signing convention"
+}
+
+test_handoff_command_references_procedure() {
+  assert_file_contains "$REPO_ROOT/.claude/commands/handoff.md" "templates/handoff-procedure.md"
+}
+
+test_tpm_references_handoff_procedure() {
+  assert_file_contains "$REPO_ROOT/.claude/agents/tpm.md" "handoff-procedure.md"
+}
+
+test_guide_references_handoff_procedure() {
+  assert_file_contains "$REPO_ROOT/docs/adoption-guide.md" "handoff-procedure.md"
+}
+
 # --- Run all tests ---
 
 echo "=== DX-007 Adoption Tests ==="
@@ -410,6 +734,9 @@ echo ""
 echo "--- install.sh tests ---"
 run_test "creates agent symlinks" test_agent_symlinks
 run_test "creates command symlinks" test_command_symlinks
+run_test "symlinks all framework commands, incl. autodev" test_all_framework_commands_symlinked
+run_test "symlinks all framework agents, incl. researcher and audit-repo" test_all_framework_agents_symlinked
+run_test "preserves project-owned agent at colliding name" test_project_agent_override_preserved
 run_test "preserves project-owned files" test_preserves_project_files
 run_test "creates team-config.yml template" test_creates_team_config_template
 run_test "does not overwrite existing config" test_does_not_overwrite_existing_config
@@ -441,6 +768,47 @@ run_test "override: --force replaces regular file override" test_force_overrides
 run_test "override: skip applies to commands" test_override_applies_to_commands
 run_test "override: summary line reports linked/ok/skipped" test_summary_line
 run_test "guide: documents local override behavior" test_guide_documents_local_override
+
+echo ""
+echo "--- standardization playbook tests (DX-025) ---"
+run_test "standardization playbook template exists" test_standardization_playbook_template_exists
+run_test "standardization playbook bootstrap exists" test_standardization_playbook_bootstrap_exists
+run_test "standardization playbook has all five phases" test_standardization_playbook_has_phases
+run_test "standardization playbook has priorities P0-P2" test_standardization_playbook_has_priorities
+run_test "standardization playbook has Depends on field" test_standardization_playbook_has_depends_on
+run_test "standardization playbook has Guiding Principles" test_standardization_playbook_has_guiding_principles
+run_test "standardization bootstrap references gh issue create" test_standardization_bootstrap_has_gh_issue_create
+run_test "standardization bootstrap references brownfield" test_standardization_bootstrap_has_brownfield
+run_test "tpm.md references standardization-playbook-bootstrap.md" test_tpm_references_standardization_bootstrap
+run_test "adoption guide references standardization-playbook.md output" test_guide_references_standardization_playbook_output
+
+echo ""
+echo "--- skills tests (FEAT-011) ---"
+run_test "skills: .claude/skills/ scaffolded" test_skills_dir_scaffolded
+run_test "skills: framework-shipped skill is symlinked" test_framework_skill_symlinked
+run_test "skills: project-owned skill is not touched" test_project_skill_not_touched
+run_test "skills: no framework skills does not crash" test_no_framework_skills_no_crash
+run_test "skills: local override of framework skill is skipped" test_framework_skill_override_skipped
+run_test "skills: idempotent on re-run" test_skills_idempotent
+run_test "guide: documents .claude/skills convention" test_guide_documents_skills
+run_test "templates/skill.md skeleton exists" test_skill_template_exists
+run_test "skills: stale dir-symlink refreshed without corrupting target" test_skill_stale_dir_symlink_refreshed_correctly
+run_test "agents: stale file-symlink refreshed correctly" test_agent_stale_file_symlink_refreshed_correctly
+run_test "skills: absent framework skills dir does not abort the run" test_absent_framework_skills_dir_no_crash
+run_test "skills: --force replaces a project-owned skill directory" test_force_replaces_project_owned_skill_directory
+
+echo ""
+echo "--- handoff procedure tests (FEAT-013) ---"
+run_test "handoff procedure template exists" test_handoff_procedure_template_exists
+run_test "handoff command exists" test_handoff_command_exists
+run_test "handoff procedure has all four buckets" test_handoff_procedure_has_buckets
+run_test "handoff procedure has branch conventions" test_handoff_procedure_has_branch_conventions
+run_test "handoff procedure has .gitignore guidance" test_handoff_procedure_has_gitignore_guidance
+run_test "handoff procedure has signing convention" test_handoff_procedure_has_signing_convention
+run_test "handoff command references procedure" test_handoff_command_references_procedure
+run_test "tpm.md references handoff-procedure.md" test_tpm_references_handoff_procedure
+run_test "adoption guide references handoff-procedure.md" test_guide_references_handoff_procedure
+
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ] || exit 1

@@ -15,7 +15,11 @@
 #     - Correct symlink    → ok    (no-op, silent)
 #     - Wrong symlink      → refreshed (re-linked with message)
 #     - Regular file       → skipped  (printed warning; use --force to override)
-#     - Directory          → error    (skipped defensively)
+#     - Directory          → skipped  (printed warning; use --force to override)
+#   Directories take the same path as regular files -- there is no separate
+#   error branch. Since FEAT-011 a real directory at a managed path is the
+#   *expected* shape of a project-owned skill override, not a defensive edge
+#   case. Note that --force on such a directory `rm -rf`s it.
 #
 # Flags:
 #   --force   Override self-host detection AND replace any regular-file local
@@ -60,7 +64,11 @@ link_managed() {
       OK=$((OK + 1))
       return 0
     fi
-    ln -sf "$src" "$dest"
+    # -n (BSD/macOS synonym for -h): do not follow $dest if it is a symlink
+    # to an existing directory. Without it, `ln -sf` dereferences a stale
+    # directory symlink (the skills case) and creates the new link *inside*
+    # the stale target instead of replacing it -- see FEAT-011 review M1.
+    ln -sfn "$src" "$dest"
     echo "  refreshed $dest (was -> $current)"
     REFRESHED=$((REFRESHED + 1))
     return 0
@@ -120,27 +128,45 @@ if [ "$FORCE" = false ] && is_self_host; then
 fi
 
 # Create target directories
-mkdir -p .claude/agents .claude/commands
+mkdir -p .claude/agents .claude/commands .claude/skills
 
 # Symlink core agents and commands — skipped in self-host mode
 if [ "$SELF_HOST" = false ]; then
-  # Symlink core agents (only framework-managed roles)
-  for agent in architect tpm dev; do
-    src="../../${FRAMEWORK_DIR}/.claude/agents/${agent}.md"
-    dest=".claude/agents/${agent}.md"
-    if [ -f "$FRAMEWORK_DIR/.claude/agents/${agent}.md" ]; then
-      link_managed "$src" "$dest"
-    fi
+  # Symlink all framework agents (BUG-009: glob instead of a hardcoded
+  # list, so new agents like researcher.md and audit-repo.md propagate
+  # downstream automatically -- mirrors the commands glob (BUG-008)).
+  for agent_file in "$FRAMEWORK_DIR"/.claude/agents/*.md; do
+    [ -f "$agent_file" ] || continue
+    agent_basename=$(basename "$agent_file")
+    src="../../${FRAMEWORK_DIR}/.claude/agents/${agent_basename}"
+    dest=".claude/agents/${agent_basename}"
+    link_managed "$src" "$dest"
   done
 
-  # Symlink core commands
-  for cmd in architect tpm dev; do
-    src="../../${FRAMEWORK_DIR}/.claude/commands/${cmd}.md"
-    dest=".claude/commands/${cmd}.md"
-    if [ -f "$FRAMEWORK_DIR/.claude/commands/${cmd}.md" ]; then
-      link_managed "$src" "$dest"
-    fi
+  # Symlink all framework commands (BUG-008: glob instead of a hardcoded
+  # list, so new commands like autodev.md propagate downstream automatically)
+  for cmd_file in "$FRAMEWORK_DIR"/.claude/commands/*.md; do
+    [ -f "$cmd_file" ] || continue
+    cmd_basename=$(basename "$cmd_file")
+    src="../../${FRAMEWORK_DIR}/.claude/commands/${cmd_basename}"
+    dest=".claude/commands/${cmd_basename}"
+    link_managed "$src" "$dest"
   done
+
+  # Symlink framework-shipped skills, if any (FEAT-011). Skills are
+  # project-owned by default -- .claude/skills/ is scaffolded above so
+  # projects have somewhere to put their own, real-file skills. Only
+  # skills the framework itself ships (.ai-lindale/.claude/skills/<name>/)
+  # get symlinked here, mirroring the commands glob (BUG-008).
+  if [ -d "$FRAMEWORK_DIR/.claude/skills" ]; then
+    for skill_dir in "$FRAMEWORK_DIR"/.claude/skills/*/; do
+      [ -d "$skill_dir" ] || continue
+      skill_basename=$(basename "$skill_dir")
+      src="../../${FRAMEWORK_DIR}/.claude/skills/${skill_basename}"
+      dest=".claude/skills/${skill_basename}"
+      link_managed "$src" "$dest"
+    done
+  fi
 
   echo ""
   echo "Summary: linked: $LINKED, ok: $OK, refreshed: $REFRESHED, skipped: $SKIPPED, forced: $FORCED"
@@ -166,11 +192,13 @@ fi
 cat > .claude/README.md << 'LINGLINK'
 # .claude/ structure
 
-Core agents (architect, tpm, dev) are symlinked from the Lindalë
-framework (.ai-lindale/). Do not edit them here — edit the framework repo.
+Framework agents and commands (everything under .ai-lindale/.claude/agents/
+and .ai-lindale/.claude/commands/) are symlinked from the Lindalë framework
+(.ai-lindale/). Do not edit them here — edit the framework repo.
 
-Project-specific agents (e.g. <domain>-sme) are real files
-owned by this project.
+Project-specific agents, commands, and skills (e.g. <domain>-sme) are real
+files owned by this project. .claude/skills/ is project-owned by default —
+only skills the framework itself ships get symlinked here.
 
 To update the framework:
 
