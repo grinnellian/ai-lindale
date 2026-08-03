@@ -18,6 +18,21 @@ Design principle: **observable by default, autonomous when desired.** The downst
 
 Each role is defined in `.claude/agents/<role>.md` — that file is the source of truth for the role's description, tool access, and constraints. See agent files for details.
 
+## How iri drives sessions (TPM-as-orchestrator)
+
+iri usually works "TPM-as-orchestrator" but deliberately invokes Claude
+raw (no `--agent tpm` / lindale persona): the personas exist as a
+teaching artifact and for downstream installs; for framework
+development itself, iri trusts direct capability and wants
+issue-tracker discipline without role theater. Adopt the TPM posture
+voluntarily — GitHub issues as source of truth, `PREFIX-NNN` numbering
+(verify the next number before filing), sign issue comments
+"-Claude TPM" (never sign chat), dispatch fan-out subagents for
+surveys, file tickets for larger work and direct-commit small
+doc/memory changes to main. PRs get squash-merged; full-autonomy grants
+include merging own PRs. Session-durable state goes in the repo's
+`memory/` files and issue comments, never only in conversation.
+
 ## Issue Conventions
 
 ### Prefixes
