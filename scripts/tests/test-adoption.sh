@@ -443,6 +443,30 @@ test_override_applies_to_commands() {
   assert_file_contains ".claude/commands/dev.md" "# local command override"
 }
 
+test_command_glob_preserves_project_owned_collision() {
+  # BUG-008 (ported from PR #112): the commands glob's skip path must apply
+  # to non-core names too — a project-owned command colliding with a
+  # framework command outside the old hardcoded trio (e.g. autodev.md) is
+  # skipped, not clobbered. Mirrors test_project_agent_override_preserved.
+  setup_project
+  setup_with_override ".claude/commands/autodev.md" "# project-owned autodev override"
+  output=$(bash "$FRAMEWORK/scripts/install.sh" 2>&1)
+  assert_file_not_symlink ".claude/commands/autodev.md" &&
+  assert_file_contains ".claude/commands/autodev.md" "project-owned autodev override" &&
+  echo "$output" | grep -qi "skipped .claude/commands/autodev.md"
+}
+
+test_tpm_agent_tool_unrestricted() {
+  # DX-036 (ported from PR #114): the TPM's Agent tool must not be narrowed
+  # to a closed list of framework-default subagent types — that blocks
+  # dispatch to project-defined agents (SMEs, etc).
+  if grep -qE '^[[:space:]]*-[[:space:]]*Agent\(' "$REPO_ROOT/.claude/agents/tpm.md"; then
+    echo "    tpm.md still restricts Agent to a closed list"
+    return 1
+  fi
+  assert_file_contains "$REPO_ROOT/.claude/agents/tpm.md" 'Agent$'
+}
+
 test_summary_line() {
   setup_project
   # Pre-create one correct symlink for architect agent (will be ok after install)
@@ -766,8 +790,13 @@ run_test "override: correct symlink is no-op on re-run" test_correct_symlink_is_
 run_test "override: wrong symlink is refreshed" test_wrong_symlink_refreshed
 run_test "override: --force replaces regular file override" test_force_overrides_regular_file
 run_test "override: skip applies to commands" test_override_applies_to_commands
+run_test "command glob preserves project-owned collision" test_command_glob_preserves_project_owned_collision
 run_test "override: summary line reports linked/ok/skipped" test_summary_line
 run_test "guide: documents local override behavior" test_guide_documents_local_override
+
+echo ""
+echo "--- role frontmatter tests (DX-036) ---"
+run_test "tpm.md Agent tool is not restricted to a closed list" test_tpm_agent_tool_unrestricted
 
 echo ""
 echo "--- standardization playbook tests (DX-025) ---"
