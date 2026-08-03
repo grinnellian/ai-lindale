@@ -11,7 +11,7 @@ tools:
   - Edit
 skills:
   - loop
-model: claude-opus-4-7
+model: claude-opus-5
 color: purple
 initialPrompt: /tpm
 maxTurns: 100

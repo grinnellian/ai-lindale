@@ -456,6 +456,15 @@ test_command_glob_preserves_project_owned_collision() {
   echo "$output" | grep -qi "skipped .claude/commands/autodev.md"
 }
 
+test_no_superseded_model_pins() {
+  # DX-041: agent frontmatter must not pin superseded model ids.
+  if grep -rlE "model:[[:space:]]*(claude-opus-4-7|claude-sonnet-4-6)" "$REPO_ROOT"/.claude/agents/*.md "$REPO_ROOT"/templates/*.md 2>/dev/null; then
+    echo "    Found superseded model pin(s) above"
+    return 1
+  fi
+  return 0
+}
+
 test_tpm_agent_tool_unrestricted() {
   # DX-036 (ported from PR #114): the TPM's Agent tool must not be narrowed
   # to a closed list of framework-default subagent types — that blocks
@@ -837,6 +846,10 @@ run_test "handoff procedure has signing convention" test_handoff_procedure_has_s
 run_test "handoff command references procedure" test_handoff_command_references_procedure
 run_test "tpm.md references handoff-procedure.md" test_tpm_references_handoff_procedure
 run_test "adoption guide references handoff-procedure.md" test_guide_references_handoff_procedure
+
+echo ""
+echo "--- model pin freshness ---"
+run_test "no superseded model ids in agent/template frontmatter" test_no_superseded_model_pins
 
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="

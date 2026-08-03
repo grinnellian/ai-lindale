@@ -8,7 +8,7 @@ tools:
   - Bash
   - WebSearch
   - WebFetch
-model: claude-sonnet-4-6
+model: claude-sonnet-5
 color: cyan
 initialPrompt: /researcher
 maxTurns: 40

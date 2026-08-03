@@ -9,7 +9,7 @@ tools:
   - Agent
 skills:
   - code-review
-model: claude-opus-4-7
+model: claude-opus-5
 color: orange
 initialPrompt: /architect
 maxTurns: 50

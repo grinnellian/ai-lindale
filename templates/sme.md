@@ -27,7 +27,7 @@ tools:
   - Grep
   - Glob
   - Bash
-model: claude-sonnet-4-6
+model: claude-sonnet-5
 maxTurns: 30
 permissionMode: plan
 ---

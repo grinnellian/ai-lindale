@@ -6,7 +6,7 @@ tools:
   - Read
   - Grep
   - Glob
-model: claude-opus-4-7
+model: claude-opus-5
 color: gray
 initialPrompt: /audit-repo
 maxTurns: 30
